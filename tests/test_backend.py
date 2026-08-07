@@ -35,6 +35,29 @@ class NotificationClient:
         self.stopped = True
 
 
+class BatchNotificationClient:
+    def __init__(self, target: object, *, timeout: float) -> None:
+        del target, timeout
+        self.is_connected = True
+        self.started: list[str] = []
+        self.stopped: list[str] = []
+
+    async def start_notify(self, characteristic: str, callback: object) -> None:
+        del callback
+        self.started.append(characteristic)
+
+    async def stop_notify(self, characteristic: str) -> None:
+        self.stopped.append(characteristic)
+
+
+class HangingBatchNotificationClient(BatchNotificationClient):
+    async def start_notify(self, characteristic: str, callback: object) -> None:
+        if characteristic == "second":
+            await asyncio.sleep(60)
+            return
+        await super().start_notify(characteristic, callback)
+
+
 @pytest.mark.asyncio
 async def test_connection_enforces_backend_operation_timeout(
     monkeypatch: pytest.MonkeyPatch,
@@ -69,3 +92,41 @@ async def test_cancelled_subscription_stops_notifications(
 
     assert connection._client.started is True
     assert connection._client.stopped is True
+
+
+@pytest.mark.asyncio
+async def test_batch_observe_stops_every_started_subscription(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(blea.backend, "BleakClient", BatchNotificationClient)
+    connection = BleakConnection(DiscoveredDevice("test-device"), timeout=0.1)
+
+    result = await connection.observe(("first", "second"), duration=0)
+
+    assert [item["characteristic"] for item in result["subscriptions"]] == [
+        "first",
+        "second",
+    ]
+    assert all(item["ok"] for item in result["subscriptions"])
+    assert result["cleanup"]["started_count"] == 2
+    assert result["cleanup"]["stopped_count"] == 2
+    assert connection._client.started == ["first", "second"]
+    assert connection._client.stopped == ["first", "second"]
+
+
+@pytest.mark.asyncio
+async def test_cancelled_batch_observe_cleans_up_started_subscriptions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(blea.backend, "BleakClient", HangingBatchNotificationClient)
+    connection = BleakConnection(DiscoveredDevice("test-device"), timeout=0.1)
+    task = asyncio.create_task(connection.observe(("first", "second"), duration=60))
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert connection._client.started == ["first"]
+    assert connection._client.stopped == ["first"]

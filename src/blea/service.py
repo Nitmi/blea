@@ -12,7 +12,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from blea.backend import BleakBackend, BleBackend, BleConnection
-from blea.errors import ConfigError, DeviceUnavailableError, GuardDeniedError
+from blea.errors import ConfigError, DeviceUnavailableError, GuardDeniedError, ProtocolError
 from blea.models import DiscoveredDevice, bytes_evidence
 
 
@@ -329,6 +329,182 @@ class BleService:
             "exit_code": 0,
         }
 
+    async def _observe_connected(
+        self,
+        device: DiscoveredDevice,
+        connection: BleConnection,
+        *,
+        characteristics: tuple[str, ...] | None,
+        duration: float,
+        timeout: float,
+    ) -> dict[str, Any]:
+        if duration < 0:
+            raise ConfigError("observation duration must not be negative")
+
+        started = time.monotonic()
+        profile = await connection.inspect()
+        discovered = [
+            characteristic
+            for service in profile.services
+            for characteristic in service.characteristics
+        ]
+        discovered_by_uuid = {
+            characteristic.uuid.casefold(): characteristic for characteristic in discovered
+        }
+        candidates = [
+            characteristic
+            for characteristic in discovered
+            if {"notify", "indicate"}.intersection(characteristic.properties)
+        ]
+
+        requested: list[str] = []
+        seen: set[str] = set()
+        for value in characteristics or ():
+            normalized = value.strip()
+            if not normalized:
+                raise ConfigError("observe characteristic must not be empty")
+            folded = normalized.casefold()
+            if folded not in seen:
+                requested.append(normalized)
+                seen.add(folded)
+
+        mode = "explicit" if requested else "auto"
+        planned: list[tuple[str, str | None, dict[str, Any] | None]] = []
+        if requested:
+            for requested_uuid in requested:
+                characteristic = discovered_by_uuid.get(requested_uuid.casefold())
+                if characteristic is None:
+                    error = ConfigError(
+                        "characteristic was not found in the discovered GATT profile",
+                        characteristic=requested_uuid,
+                    ).to_dict()
+                    planned.append((requested_uuid, None, error))
+                elif not {"notify", "indicate"}.intersection(characteristic.properties):
+                    error = ConfigError(
+                        "characteristic does not support notify or indicate",
+                        characteristic=characteristic.uuid,
+                        properties=list(characteristic.properties),
+                    ).to_dict()
+                    planned.append((characteristic.uuid, None, error))
+                else:
+                    planned.append((characteristic.uuid, characteristic.uuid, None))
+        else:
+            planned.extend((item.uuid, item.uuid, None) for item in candidates)
+
+        selected = tuple(
+            canonical for _, canonical, error in planned if canonical is not None and error is None
+        )
+        if selected:
+            batch = await connection.observe(selected, duration=duration)
+        else:
+            batch = {
+                "subscriptions": [],
+                "notifications": [],
+                "cleanup": {
+                    "ok": True,
+                    "started_count": 0,
+                    "stopped_count": 0,
+                    "failure_count": 0,
+                    "errors": [],
+                },
+            }
+
+        backend_attempts = {
+            str(item["characteristic"]).casefold(): item for item in batch["subscriptions"]
+        }
+        subscriptions: list[dict[str, Any]] = []
+        for reported_uuid, canonical, error in planned:
+            if error is not None:
+                subscriptions.append({"characteristic": reported_uuid, "ok": False, "error": error})
+                continue
+            attempt = backend_attempts.get(str(canonical).casefold())
+            if attempt is None:
+                error = ProtocolError(
+                    "BLE backend omitted an observation subscription result",
+                    characteristic=canonical,
+                ).to_dict()
+                subscriptions.append({"characteristic": reported_uuid, "ok": False, "error": error})
+            else:
+                subscriptions.append(attempt)
+
+        notifications = sorted(batch["notifications"], key=lambda item: item.timestamp)
+        notification_counts: dict[str, int] = {}
+        for notification in notifications:
+            notification_counts[notification.characteristic] = (
+                notification_counts.get(notification.characteristic, 0) + 1
+            )
+
+        success_count = sum(1 for item in subscriptions if item["ok"])
+        failure_count = len(subscriptions) - success_count
+        failure_reasons: dict[str, int] = {}
+        for item in subscriptions:
+            if item["ok"]:
+                continue
+            reason = str(item["error"].get("reason", "unknown_error"))
+            failure_reasons[reason] = failure_reasons.get(reason, 0) + 1
+
+        cleanup = batch["cleanup"]
+        if mode == "auto" and not candidates:
+            status = "no_subscribable_characteristics"
+        elif failure_count or not cleanup["ok"]:
+            status = "complete_with_failures"
+        else:
+            status = "complete"
+
+        return {
+            "ok": True,
+            "operation": "observe",
+            "status": status,
+            "device": device.to_dict(),
+            "profile_summary": profile.summary(),
+            "selection": {
+                "mode": mode,
+                "candidate_count": len(candidates),
+                "requested_count": len(requested) if requested else len(candidates),
+                "selected_count": len(selected),
+            },
+            "subscription_summary": {
+                "attempted_count": len(subscriptions),
+                "success_count": success_count,
+                "failure_count": failure_count,
+                "failure_reasons": dict(sorted(failure_reasons.items())),
+            },
+            "subscriptions": subscriptions,
+            "sample_duration_seconds": duration,
+            "notification_count": len(notifications),
+            "notification_counts": dict(sorted(notification_counts.items())),
+            "notifications": [item.to_dict() for item in notifications],
+            "cleanup": cleanup,
+            **_operation_timeout(timeout),
+            "duration_ms": _duration_ms(started),
+            "exit_code": 0,
+        }
+
+    async def observe(
+        self,
+        selector: str,
+        *,
+        characteristics: tuple[str, ...] | None = None,
+        duration: float = 10.0,
+        timeout: float = 10.0,
+    ) -> dict[str, Any]:
+        if duration < 0:
+            raise ConfigError("observation duration must not be negative")
+        started = time.monotonic()
+        device, connection = await self._open(selector, timeout=timeout)
+        try:
+            result = await self._observe_connected(
+                device,
+                connection,
+                characteristics=characteristics,
+                duration=duration,
+                timeout=timeout,
+            )
+        finally:
+            await connection.disconnect()
+        result["duration_ms"] = _duration_ms(started)
+        return result
+
     async def write(
         self,
         selector: str,
@@ -473,6 +649,27 @@ class SessionManager:
             **_operation_timeout(session.operation_timeout_seconds),
             "exit_code": 0,
         }
+
+    async def observe(
+        self,
+        session_id: str,
+        *,
+        characteristics: tuple[str, ...] | None = None,
+        duration: float = 10.0,
+    ) -> dict[str, Any]:
+        if duration < 0:
+            raise ConfigError("observation duration must not be negative")
+        async with self._use(session_id) as session:
+            result = await self.service._observe_connected(
+                session.device,
+                session.connection,
+                characteristics=characteristics,
+                duration=duration,
+                timeout=session.operation_timeout_seconds,
+            )
+        result["operation"] = "session_observe"
+        result["session_id"] = session_id
+        return result
 
     async def write(
         self,

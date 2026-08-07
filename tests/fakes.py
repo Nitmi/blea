@@ -57,6 +57,28 @@ class FakeConnection:
             Notification(characteristic, b"\x63", "2026-08-07T00:00:01.000Z"),
         ]
 
+    async def observe(
+        self, characteristics: tuple[str, ...], *, duration: float
+    ) -> dict[str, object]:
+        del duration
+        notifications = [
+            Notification(characteristic, b"\x64", f"2026-08-07T00:00:0{index}.000Z")
+            for index, characteristic in enumerate(characteristics)
+        ]
+        return {
+            "subscriptions": [
+                {"characteristic": characteristic, "ok": True} for characteristic in characteristics
+            ],
+            "notifications": notifications,
+            "cleanup": {
+                "ok": True,
+                "started_count": len(characteristics),
+                "stopped_count": len(characteristics),
+                "failure_count": 0,
+                "errors": [],
+            },
+        }
+
 
 class FakeBackend:
     name = "fake"

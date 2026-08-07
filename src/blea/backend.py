@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from typing import Protocol
+from typing import Any, Protocol
 
 from bleak import BleakClient, BleakScanner
 
@@ -35,6 +35,10 @@ class BleConnection(Protocol):
     async def write(self, characteristic: str, data: bytes, *, response: bool) -> None: ...
 
     async def subscribe(self, characteristic: str, *, duration: float) -> list[Notification]: ...
+
+    async def observe(
+        self, characteristics: tuple[str, ...], *, duration: float
+    ) -> dict[str, Any]: ...
 
 
 class BleBackend(Protocol):
@@ -156,6 +160,59 @@ class BleakConnection:
             return notifications
         except Exception as exc:
             raise translate_backend_error(exc, operation="subscribe") from exc
+
+    async def observe(self, characteristics: tuple[str, ...], *, duration: float) -> dict[str, Any]:
+        notifications: list[Notification] = []
+        subscriptions: list[dict[str, Any]] = []
+        started: list[str] = []
+        cleanup_errors: list[dict[str, Any]] = []
+
+        def callback_factory(default_characteristic: str) -> Callable[[object, bytearray], None]:
+            def callback(sender: object, data: bytearray) -> None:
+                sender_uuid = str(getattr(sender, "uuid", default_characteristic))
+                notifications.append(Notification(sender_uuid, bytes(data)))
+
+            return callback
+
+        try:
+            for characteristic in characteristics:
+                try:
+                    await asyncio.wait_for(
+                        self._client.start_notify(characteristic, callback_factory(characteristic)),
+                        timeout=self._timeout,
+                    )
+                except Exception as exc:
+                    error = translate_backend_error(exc, operation="subscribe").to_dict()
+                    subscriptions.append(
+                        {"characteristic": characteristic, "ok": False, "error": error}
+                    )
+                else:
+                    started.append(characteristic)
+                    subscriptions.append({"characteristic": characteristic, "ok": True})
+            if started:
+                await asyncio.sleep(max(duration, 0.0))
+        finally:
+            for characteristic in started:
+                try:
+                    await asyncio.wait_for(
+                        self._client.stop_notify(characteristic), timeout=self._timeout
+                    )
+                except Exception as exc:
+                    cleanup_errors.append(
+                        translate_backend_error(exc, operation="unsubscribe").to_dict()
+                    )
+
+        return {
+            "subscriptions": subscriptions,
+            "notifications": notifications,
+            "cleanup": {
+                "ok": not cleanup_errors,
+                "started_count": len(started),
+                "stopped_count": len(started) - len(cleanup_errors),
+                "failure_count": len(cleanup_errors),
+                "errors": cleanup_errors,
+            },
+        }
 
 
 class BleakBackend:

@@ -1,6 +1,6 @@
 ---
 name: ble
-description: Use BLEA to diagnose and automate local Bluetooth Low Energy devices. Trigger for BLE adapter or permission problems, nearby-device scans, deterministic device selection, GATT service discovery, characteristic reads, notification subscriptions, guarded writes, repeatable BLE YAML workflows, and raw-byte evidence collection through the `ble` CLI or BLEA MCP tools.
+description: Use BLEA to diagnose and automate local Bluetooth Low Energy devices. Trigger for BLE adapter or permission problems, nearby-device scans, deterministic device selection, GATT service discovery, characteristic reads, bounded multi-characteristic observation, notification subscriptions, guarded writes, repeatable BLE YAML workflows, and raw-byte evidence collection through the `ble` CLI or BLEA MCP tools.
 ---
 
 # BLEA
@@ -15,12 +15,15 @@ Use BLEA for local BLE work. Prefer BLEA MCP tools when available; otherwise run
    evidence.
 3. Select by exact identifier. Use an exact name only when one observed device has that name.
 4. Inspect the GATT profile before choosing characteristics.
-5. When probing, continue with `next_read_offset` until it is `null`. `ok=true` means the page ran;
+5. For event discovery, use bounded `ble_observe`/`ble observe` before writing; omit characteristics
+   to observe all notify/indicate traits from the discovered profile.
+6. When probing, continue with `next_read_offset` until it is `null`. `ok=true` means the page ran;
    it does not mean every characteristic read succeeded. Aggregate `read_page.success_count`,
    `failure_count`, and `failure_reasons` across pages, and preserve both successful reads and
    per-characteristic failures.
-6. Prefer reads and bounded subscriptions before considering a write.
-7. Close the exact stateful MCP session once when the task is complete. Use `ble_session_list` when
+7. Prefer reads and bounded observation before considering a write. Treat a silent observation
+   window as evidence only for that window, not proof that a characteristic never emits events.
+8. Close the exact stateful MCP session once when the task is complete. Use `ble_session_list` when
    cleanup is uncertain. Use `ble_session_close_all` only when a session ID is unknown, an explicit
    close failed, or leaked state must be recovered; do not call it after a successful close.
 
@@ -39,7 +42,10 @@ observed evidence and distinguish it from an inference. Treat `uuid_namespace=cu
   `ble_inspect` first or set `include_profile=true` when the full profile is needed on that page.
 - Read: `ble read --device "id:<identifier>" --characteristic <uuid> --json` or `ble_read`.
 - Notify: use `ble subscribe ... --jsonl` or `ble_subscribe` with a bounded duration.
-- Multi-step work: open an MCP session, note its `idle_timeout_seconds`, operate on it, then close it.
+- Observe all event-capable traits: use `ble observe --device "id:<identifier>" --duration 10
+  --jsonl` or `ble_observe`. Pass `--characteristic <uuid>` repeatedly for explicit selection.
+- Multi-step work: open an MCP session, note its `idle_timeout_seconds`, use
+  `ble_session_observe` when the connection should be reused, then close the session.
 - Repeatable work: encode the sequence in a guarded YAML file and run `ble run`.
 
 Read [workflows.md](references/workflows.md) before creating or editing workflow YAML. Read

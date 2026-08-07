@@ -37,6 +37,7 @@ ble probe --device "id:AA:BB:CC:DD:EE:FF" --max-reads 16 --json
 ble probe --device "id:AA:BB:CC:DD:EE:FF" --max-reads 16 --read-offset 16 --json
 ble read --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a19 --json
 ble subscribe --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a37 --duration 15 --jsonl
+ble observe --device "id:AA:BB:CC:DD:EE:FF" --duration 10 --jsonl
 ```
 
 Device names are accepted only when exactly one observed device has that name. Prefer the
@@ -56,6 +57,11 @@ to discovery, connection, and each GATT operation, rather than bounding the tota
 GATT entries include `uuid_namespace`. BLEA reports library descriptions only for canonical
 Bluetooth Base UUIDs, avoiding false standard names inferred from the leading bytes of custom
 128-bit UUIDs.
+
+`observe` discovers notify/indicate characteristics and watches them over one connection for a
+bounded duration. Omit `--characteristic` to select all event-capable traits, or repeat it for
+explicit selection. The result separates subscription failures, cleanup failures, and notification
+events; a quiet window is evidence only for that sample window.
 
 ## Guarded writes
 
@@ -84,7 +90,7 @@ ble mcp
 ```
 
 The MCP surface includes one-shot tools and stateful session tools. Sessions let an agent connect
-once, inspect, read, subscribe, optionally perform a guarded write, and then disconnect.
+once, inspect, read, observe, subscribe, optionally perform a guarded write, and then disconnect.
 `ble_session_list` exposes active leases and `ble_session_close_all` provides explicit recovery.
 The server disconnects all sessions when the MCP client exits and reaps an inactive session after
 120 seconds by default. Set `BLEA_SESSION_IDLE_SECONDS` to another positive duration, or `0` to

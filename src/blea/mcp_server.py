@@ -162,6 +162,30 @@ async def ble_subscribe(
 
 
 @mcp.tool()
+async def ble_observe(
+    device: str,
+    characteristics: list[str] | None = None,
+    duration: float = 10.0,
+    timeout: float = 10.0,
+) -> dict[str, Any]:
+    """Observe notify/indicate characteristics on one connection for a bounded duration.
+
+    When characteristics is omitted, all discovered notify/indicate characteristics are selected.
+    Per-characteristic subscription failures remain in subscriptions while other subscriptions
+    continue. The tool always reports cleanup evidence and never writes or pairs.
+    """
+
+    return await _safe(
+        service.observe(
+            device,
+            characteristics=tuple(characteristics) if characteristics else None,
+            duration=duration,
+            timeout=timeout,
+        )
+    )
+
+
+@mcp.tool()
 async def ble_write(
     device: str,
     characteristic: str,
@@ -222,6 +246,23 @@ async def ble_session_subscribe(
     """Collect bounded notifications through an open BLE session."""
 
     return await _safe(sessions.subscribe(session_id, characteristic, duration=duration))
+
+
+@mcp.tool()
+async def ble_session_observe(
+    session_id: str,
+    characteristics: list[str] | None = None,
+    duration: float = 10.0,
+) -> dict[str, Any]:
+    """Observe notify/indicate characteristics through one existing session connection."""
+
+    return await _safe(
+        sessions.observe(
+            session_id,
+            characteristics=tuple(characteristics) if characteristics else None,
+            duration=duration,
+        )
+    )
 
 
 @mcp.tool()

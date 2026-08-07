@@ -37,6 +37,8 @@ def test_cli_exposes_product_surfaces() -> None:
     assert probe.include_profile is True
     compact_probe = parser.parse_args(["probe", "--device", "Sensor", "--no-include-profile"])
     assert compact_probe.include_profile is False
+    observe = parser.parse_args(["observe", "--device", "Sensor", "--characteristic", "2a19"])
+    assert observe.characteristics == ["2a19"]
     assert parser.parse_args(["mcp"]).subcommand == "mcp"
 
 
@@ -48,12 +50,14 @@ async def test_mcp_exposes_one_shot_and_stateful_tools() -> None:
         "ble_scan",
         "ble_inspect",
         "ble_probe",
+        "ble_observe",
         "ble_read",
         "ble_subscribe",
         "ble_write",
         "ble_session_open",
         "ble_session_read",
         "ble_session_close",
+        "ble_session_observe",
         "ble_session_list",
         "ble_session_close_all",
     }.issubset(names)

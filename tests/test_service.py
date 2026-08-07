@@ -86,6 +86,79 @@ async def test_probe_rejects_non_progressing_windows() -> None:
 
 
 @pytest.mark.asyncio
+async def test_observe_auto_selects_subscribable_characteristics() -> None:
+    backend = FakeBackend()
+    service = BleService(backend)
+
+    result = await service.observe("Sensor", duration=0, timeout=0.1)
+
+    assert result["status"] == "complete"
+    assert result["selection"] == {
+        "mode": "auto",
+        "candidate_count": 1,
+        "requested_count": 1,
+        "selected_count": 1,
+    }
+    assert result["subscription_summary"] == {
+        "attempted_count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "failure_reasons": {},
+    }
+    assert result["notification_count"] == 1
+    assert result["notification_counts"] == {BATTERY: 1}
+    assert result["cleanup"]["failure_count"] == 0
+    assert backend.connect_count == backend.disconnect_count == 1
+
+
+@pytest.mark.asyncio
+async def test_observe_keeps_explicit_selection_failures() -> None:
+    service = BleService(FakeBackend())
+
+    result = await service.observe(
+        "Sensor",
+        characteristics=(CONTROL, "missing-characteristic", BATTERY),
+        duration=0,
+        timeout=0.1,
+    )
+
+    assert result["status"] == "complete_with_failures"
+    assert result["subscription_summary"]["attempted_count"] == 3
+    assert result["subscription_summary"]["success_count"] == 1
+    assert result["subscription_summary"]["failure_count"] == 2
+    assert result["subscription_summary"]["failure_reasons"] == {"config_error": 2}
+    assert [item["characteristic"] for item in result["subscriptions"]] == [
+        CONTROL,
+        "missing-characteristic",
+        BATTERY,
+    ]
+
+
+@pytest.mark.asyncio
+async def test_observe_rejects_negative_duration_before_connecting() -> None:
+    backend = FakeBackend()
+
+    with pytest.raises(ConfigError):
+        await BleService(backend).observe("Sensor", duration=-1)
+
+    assert backend.connect_count == 0
+
+
+@pytest.mark.asyncio
+async def test_session_observe_reuses_the_open_connection() -> None:
+    backend = FakeBackend()
+    manager = SessionManager(BleService(backend), idle_timeout_seconds=120)
+    opened = await manager.open("Sensor", timeout=0.1)
+
+    result = await manager.observe(opened["session_id"], duration=0)
+    await manager.close(opened["session_id"])
+
+    assert result["operation"] == "session_observe"
+    assert result["notification_count"] == 1
+    assert backend.connect_count == backend.disconnect_count == 1
+
+
+@pytest.mark.asyncio
 async def test_device_names_must_resolve_uniquely() -> None:
     devices = [
         DiscoveredDevice("AA:BB:CC:DD:EE:01", name="Sensor"),

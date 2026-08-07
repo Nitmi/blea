@@ -84,6 +84,22 @@ def _print_human(payload: dict[str, Any]) -> None:
                 f"{notification['data']['hex']}"
             )
         print(f"Notifications: {payload['notification_count']}")
+    elif operation in {"observe", "session_observe"}:
+        selection = payload["selection"]
+        summary = payload["subscription_summary"]
+        print(f"Device: {payload['device']['identifier']}")
+        print(
+            f"Observed {selection['selected_count']} characteristics for "
+            f"{payload['sample_duration_seconds']} seconds"
+        )
+        print(
+            "Subscriptions: "
+            f"{summary['success_count']} succeeded, "
+            f"{summary['failure_count']} failed; "
+            f"Notifications: {payload['notification_count']}"
+        )
+        for item in payload["notifications"]:
+            print(f"{item['timestamp']} {item['characteristic']} {item['data']['hex']}")
     elif operation in {"write", "session_write"}:
         print(f"Wrote {payload['written']['length']} bytes to {payload['characteristic']}")
         if payload.get("read_back"):
@@ -101,7 +117,10 @@ def _emit(payload: dict[str, Any], args: argparse.Namespace) -> int:
         if payload.get("operation") == "scan":
             for device in payload.get("devices", []):
                 print(_json({"type": "device", **device}))
-        elif payload.get("operation") == "subscribe":
+        elif payload.get("operation") == "subscribe" or payload.get("operation") in {
+            "observe",
+            "session_observe",
+        }:
             for notification in payload.get("notifications", []):
                 print(_json({"type": "notification", **notification}))
         print(_json({"type": "result", **payload}))
@@ -156,6 +175,18 @@ async def command_subscribe(args: argparse.Namespace) -> int:
         await BleService().subscribe(
             args.device,
             args.characteristic,
+            duration=args.duration,
+            timeout=args.timeout,
+        ),
+        args,
+    )
+
+
+async def command_observe(args: argparse.Namespace) -> int:
+    return _emit(
+        await BleService().observe(
+            args.device,
+            characteristics=tuple(args.characteristics) if args.characteristics else None,
             duration=args.duration,
             timeout=args.timeout,
         ),
@@ -251,6 +282,21 @@ def build_parser() -> argparse.ArgumentParser:
     subscribe.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
     _add_json(subscribe, jsonl=True)
     subscribe.set_defaults(func=command_subscribe)
+
+    observe = subparsers.add_parser(
+        "observe", help="observe all or selected notify/indicate characteristics"
+    )
+    observe.add_argument("--device", required=True)
+    observe.add_argument(
+        "--characteristic",
+        dest="characteristics",
+        action="append",
+        help="repeat to observe selected characteristics; defaults to all notify/indicate traits",
+    )
+    observe.add_argument("--duration", type=float, default=10.0)
+    observe.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
+    _add_json(observe, jsonl=True)
+    observe.set_defaults(func=command_observe)
 
     write = subparsers.add_parser("write", help="perform an explicitly authorized GATT write")
     write.add_argument("--device", required=True)
