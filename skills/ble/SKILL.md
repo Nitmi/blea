@@ -15,11 +15,14 @@ Use BLEA for local BLE work. Prefer BLEA MCP tools when available; otherwise run
    evidence.
 3. Select by exact identifier. Use an exact name only when one observed device has that name.
 4. Inspect the GATT profile before choosing characteristics.
-5. When probing, continue with `next_read_offset` until it is `null`. Treat per-characteristic
-   failures as partial evidence; do not discard successful reads from the same page.
+5. When probing, continue with `next_read_offset` until it is `null`. `ok=true` means the page ran;
+   it does not mean every characteristic read succeeded. Aggregate `read_page.success_count`,
+   `failure_count`, and `failure_reasons` across pages, and preserve both successful reads and
+   per-characteristic failures.
 6. Prefer reads and bounded subscriptions before considering a write.
-7. Close stateful MCP sessions when the task is complete. Use `ble_session_list` to recover unknown
-   session state and `ble_session_close_all` when no open lease should remain.
+7. Close the exact stateful MCP session once when the task is complete. Use `ble_session_list` when
+   cleanup is uncertain. Use `ble_session_close_all` only when a session ID is unknown, an explicit
+   close failed, or leaked state must be recovered; do not call it after a successful close.
 
 Do not invent UUIDs, payload encodings, pairing requirements, or protocol semantics. Report the
 observed evidence and distinguish it from an inference. Treat `uuid_namespace=custom` as a custom
@@ -32,6 +35,8 @@ observed evidence and distinguish it from an inference. Treat `uuid_namespace=cu
 - Inspect: `ble inspect --device "id:<identifier>" --json` or `ble_inspect`.
 - Probe readable characteristics: use `ble probe --device "id:<identifier>" --max-reads 32
   --read-offset <offset> --json` or `ble_probe`, following `next_read_offset` across pages.
+- MCP probe results omit the full GATT tree by default while retaining `profile_summary`; call
+  `ble_inspect` first or set `include_profile=true` when the full profile is needed on that page.
 - Read: `ble read --device "id:<identifier>" --characteristic <uuid> --json` or `ble_read`.
 - Notify: use `ble subscribe ... --jsonl` or `ble_subscribe` with a bounded duration.
 - Multi-step work: open an MCP session, note its `idle_timeout_seconds`, operate on it, then close it.
@@ -40,6 +45,10 @@ observed evidence and distinguish it from an inference. Treat `uuid_namespace=cu
 Read [workflows.md](references/workflows.md) before creating or editing workflow YAML. Read
 [safety.md](references/safety.md) before any write, pairing-sensitive operation, firmware update,
 lock, actuator, or other state-changing action.
+
+`timeout` is a per-backend-operation bound, not a total command or tool deadline. Allow for device
+discovery, connection, profile discovery, each requested read, and any subscription duration when
+setting an outer Agent/tool timeout.
 
 ## Write policy
 

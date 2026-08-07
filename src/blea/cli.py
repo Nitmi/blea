@@ -14,6 +14,10 @@ from blea.errors import EXIT_CONFIG_ERROR, EXIT_DEVICE_UNAVAILABLE, BleaError
 from blea.service import BleService
 from blea.workflow import run_workflow
 
+OPERATION_TIMEOUT_HELP = (
+    "seconds per scan, connect, and GATT operation; not a total command deadline"
+)
+
 
 def _json(payload: Any) -> str:
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
@@ -58,12 +62,13 @@ def _print_human(payload: dict[str, Any]) -> None:
                 print(f"  char {char['uuid']}  [{properties}]")
     elif operation == "probe":
         print(f"Device: {payload['device']['identifier']}")
-        print(f"Services: {payload['profile']['service_count']}")
+        print(f"Services: {payload['profile_summary']['service_count']}")
+        page = payload["read_page"]
         print(
             "Reads: "
-            f"{payload['read_success_count']} succeeded, "
-            f"{payload['read_failure_count']} failed, "
-            f"{payload['reads_remaining']} remaining"
+            f"{page['success_count']} succeeded, "
+            f"{page['failure_count']} failed, "
+            f"{page['remaining_count']} remaining"
         )
         for item in payload["reads"]:
             value = item["data"]["hex"] if item.get("ok") else "ERROR"
@@ -134,6 +139,7 @@ async def command_probe(args: argparse.Namespace) -> int:
             timeout=args.timeout,
             max_reads=args.max_reads,
             read_offset=args.read_offset,
+            include_profile=args.include_profile,
         ),
         args,
     )
@@ -211,7 +217,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     inspect_parser = subparsers.add_parser("inspect", help="discover a device GATT profile")
     inspect_parser.add_argument("--device", required=True, help="exact identifier or exact name")
-    inspect_parser.add_argument("--timeout", type=float, default=10.0)
+    inspect_parser.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
     _add_json(inspect_parser)
     inspect_parser.set_defaults(func=command_inspect)
 
@@ -219,16 +225,22 @@ def build_parser() -> argparse.ArgumentParser:
         "probe", help="discover GATT and read a bounded set of readable characteristics"
     )
     probe.add_argument("--device", required=True, help="exact identifier or exact name")
-    probe.add_argument("--timeout", type=float, default=10.0)
+    probe.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
     probe.add_argument("--max-reads", type=int, default=32)
     probe.add_argument("--read-offset", type=int, default=0)
+    probe.add_argument(
+        "--include-profile",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="include the full GATT profile in structured output",
+    )
     _add_json(probe)
     probe.set_defaults(func=command_probe)
 
     read = subparsers.add_parser("read", help="read one GATT characteristic")
     read.add_argument("--device", required=True)
     read.add_argument("--characteristic", required=True)
-    read.add_argument("--timeout", type=float, default=10.0)
+    read.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
     _add_json(read)
     read.set_defaults(func=command_read)
 
@@ -236,7 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
     subscribe.add_argument("--device", required=True)
     subscribe.add_argument("--characteristic", required=True)
     subscribe.add_argument("--duration", type=float, default=10.0)
-    subscribe.add_argument("--timeout", type=float, default=10.0)
+    subscribe.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
     _add_json(subscribe, jsonl=True)
     subscribe.set_defaults(func=command_subscribe)
 
@@ -251,7 +263,7 @@ def build_parser() -> argparse.ArgumentParser:
     write.add_argument("--read-back", action="store_true")
     write.add_argument("--allow-write", action="store_true")
     write.add_argument("--confirm-device", help="must exactly match the resolved device identifier")
-    write.add_argument("--timeout", type=float, default=10.0)
+    write.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
     _add_json(write)
     write.set_defaults(func=command_write)
 

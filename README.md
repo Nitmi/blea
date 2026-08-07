@@ -45,10 +45,17 @@ platform identifier returned by `scan`; on macOS this is normally a UUID rather 
 Every binary value includes `length`, `hex`, `base64`, and replacement-safe UTF-8 representations.
 JSON errors use stable reasons and exit codes suitable for agent recovery.
 
-`probe` is paginated. Follow `next_read_offset` until it is `null`; `failure_reasons` separates
-characteristic-level failures such as pairing requirements from a failed connection. GATT entries
-also include `uuid_namespace`. BLEA reports library descriptions only for canonical Bluetooth Base
-UUIDs, avoiding false standard names inferred from the leading bytes of custom 128-bit UUIDs.
+`probe` is paginated. Follow `next_read_offset` until it is `null`. Page counts and
+characteristic-level failures live under `read_page`; `ok=true` means the page executed, while
+`read_page.has_failures` tells you whether any characteristic failed. Every result includes a small
+`profile_summary`. The CLI includes the full GATT profile by default and supports
+`--no-include-profile`; the MCP tool omits it by default to keep repeated pages compact.
+
+Connection commands report `timeout_scope=per_backend_operation`. Their timeout applies separately
+to discovery, connection, and each GATT operation, rather than bounding the total command time.
+GATT entries include `uuid_namespace`. BLEA reports library descriptions only for canonical
+Bluetooth Base UUIDs, avoiding false standard names inferred from the leading bytes of custom
+128-bit UUIDs.
 
 ## Guarded writes
 
@@ -82,6 +89,9 @@ once, inspect, read, subscribe, optionally perform a guarded write, and then dis
 The server disconnects all sessions when the MCP client exits and reaps an inactive session after
 120 seconds by default. Set `BLEA_SESSION_IDLE_SECONDS` to another positive duration, or `0` to
 disable idle reaping while retaining shutdown cleanup.
+
+Close a known session with `ble_session_close`. Reserve `ble_session_close_all` for recovering an
+unknown session ID, a failed explicit close, or confirmed leaked state.
 
 This repository is itself an [Agent Plugins 1.0](https://agent-plugins.org/) package:
 

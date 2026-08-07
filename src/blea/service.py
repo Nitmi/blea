@@ -20,6 +20,13 @@ def _duration_ms(started: float) -> int:
     return int((time.monotonic() - started) * 1000)
 
 
+def _operation_timeout(timeout: float) -> dict[str, Any]:
+    return {
+        "operation_timeout_seconds": timeout,
+        "timeout_scope": "per_backend_operation",
+    }
+
+
 def _package_version(name: str) -> str | None:
     try:
         return version(name)
@@ -175,7 +182,9 @@ class BleService:
             "ok": True,
             "operation": "inspect",
             "device": device.to_dict(),
+            "profile_summary": profile.summary(),
             "profile": profile.to_dict(),
+            **_operation_timeout(timeout),
             "duration_ms": _duration_ms(started),
             "exit_code": 0,
         }
@@ -187,6 +196,7 @@ class BleService:
         timeout: float = 10.0,
         max_reads: int = 32,
         read_offset: int = 0,
+        include_profile: bool = True,
     ) -> dict[str, Any]:
         if max_reads <= 0:
             raise ConfigError("max_reads must be greater than zero")
@@ -236,26 +246,40 @@ class BleService:
         window_end = min(read_offset + len(reads), len(readable))
         reads_remaining = max(len(readable) - window_end, 0)
         next_read_offset = window_end if reads_remaining else None
-        partial = bool(failure_count or reads_remaining)
-        return {
+        has_more = reads_remaining > 0
+        has_failures = failure_count > 0
+        if has_more:
+            status = "more_with_failures" if has_failures else "more"
+        else:
+            status = "complete_with_failures" if has_failures else "complete"
+        result = {
             "ok": True,
             "operation": "probe",
-            "status": "partial" if partial else "complete",
-            "partial": partial,
+            "status": status,
             "device": device.to_dict(),
-            "profile": profile.to_dict(),
-            "readable_count": len(readable),
-            "read_offset": read_offset,
-            "reads_attempted": len(reads),
-            "read_success_count": success_count,
-            "read_failure_count": failure_count,
-            "reads_remaining": reads_remaining,
+            "profile_summary": profile.summary(),
+            "profile_included": include_profile,
+            "read_page": {
+                "offset": read_offset,
+                "limit": max_reads,
+                "attempted_count": len(reads),
+                "success_count": success_count,
+                "failure_count": failure_count,
+                "remaining_count": reads_remaining,
+                "next_offset": next_read_offset,
+                "has_more": has_more,
+                "has_failures": has_failures,
+                "failure_reasons": dict(sorted(failure_reasons.items())),
+            },
             "next_read_offset": next_read_offset,
-            "failure_reasons": dict(sorted(failure_reasons.items())),
             "reads": reads,
+            **_operation_timeout(timeout),
             "duration_ms": _duration_ms(started),
             "exit_code": 0,
         }
+        if include_profile:
+            result["profile"] = profile.to_dict()
+        return result
 
     async def read(
         self, selector: str, characteristic: str, *, timeout: float = 10.0
@@ -272,6 +296,7 @@ class BleService:
             "device": device.to_dict(),
             "characteristic": characteristic,
             "data": bytes_evidence(data),
+            **_operation_timeout(timeout),
             "duration_ms": _duration_ms(started),
             "exit_code": 0,
         }
@@ -299,6 +324,7 @@ class BleService:
             "characteristic": characteristic,
             "notification_count": len(notifications),
             "notifications": [item.to_dict() for item in notifications],
+            **_operation_timeout(timeout),
             "duration_ms": _duration_ms(started),
             "exit_code": 0,
         }
@@ -333,6 +359,7 @@ class BleService:
             "written": bytes_evidence(data),
             "response": response,
             "read_back": bytes_evidence(read_back_data) if read_back_data is not None else None,
+            **_operation_timeout(timeout),
             "duration_ms": _duration_ms(started),
             "exit_code": 0,
         }
@@ -343,6 +370,7 @@ class ActiveSession:
     id: str
     device: DiscoveredDevice
     connection: BleConnection
+    operation_timeout_seconds: float
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     last_used: float = field(default_factory=time.monotonic)
     closing: bool = False
@@ -390,13 +418,14 @@ class SessionManager:
         connection = self.service.backend.connection(device, timeout=timeout)
         await connection.connect()
         session_id = uuid.uuid4().hex
-        self._sessions[session_id] = ActiveSession(session_id, device, connection)
+        self._sessions[session_id] = ActiveSession(session_id, device, connection, timeout)
         return {
             "ok": True,
             "operation": "session_open",
             "session_id": session_id,
             "device": device.to_dict(),
             "idle_timeout_seconds": self.idle_timeout_seconds,
+            **_operation_timeout(timeout),
             "exit_code": 0,
         }
 
@@ -408,7 +437,9 @@ class SessionManager:
             "operation": "session_inspect",
             "session_id": session_id,
             "device": session.device.to_dict(),
+            "profile_summary": profile.summary(),
             "profile": profile.to_dict(),
+            **_operation_timeout(session.operation_timeout_seconds),
             "exit_code": 0,
         }
 
@@ -422,6 +453,7 @@ class SessionManager:
             "device": session.device.to_dict(),
             "characteristic": characteristic,
             "data": bytes_evidence(data),
+            **_operation_timeout(session.operation_timeout_seconds),
             "exit_code": 0,
         }
 
@@ -438,6 +470,7 @@ class SessionManager:
             "characteristic": characteristic,
             "notification_count": len(notifications),
             "notifications": [item.to_dict() for item in notifications],
+            **_operation_timeout(session.operation_timeout_seconds),
             "exit_code": 0,
         }
 
@@ -467,6 +500,7 @@ class SessionManager:
             "written": bytes_evidence(data),
             "response": response,
             "read_back": bytes_evidence(read_back_data) if read_back_data is not None else None,
+            **_operation_timeout(session.operation_timeout_seconds),
             "exit_code": 0,
         }
 
@@ -491,6 +525,7 @@ class SessionManager:
                 "device": session.device.to_dict(),
                 "idle_seconds": round(max(now - session.last_used, 0.0), 3),
                 "busy": session.lock.locked(),
+                **_operation_timeout(session.operation_timeout_seconds),
             }
             for session in self._sessions.values()
         ]

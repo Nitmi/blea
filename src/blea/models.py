@@ -119,9 +119,31 @@ class ServiceInfo:
 class GattProfile:
     services: tuple[ServiceInfo, ...]
 
-    def to_dict(self) -> dict[str, Any]:
+    def summary(self) -> dict[str, int]:
+        characteristics = [
+            characteristic
+            for service in self.services
+            for characteristic in service.characteristics
+        ]
         return {
             "service_count": len(self.services),
+            "characteristic_count": len(characteristics),
+            "readable_characteristic_count": sum(
+                "read" in characteristic.properties for characteristic in characteristics
+            ),
+            "writable_characteristic_count": sum(
+                bool({"write", "write-without-response"}.intersection(characteristic.properties))
+                for characteristic in characteristics
+            ),
+            "subscribable_characteristic_count": sum(
+                bool({"notify", "indicate"}.intersection(characteristic.properties))
+                for characteristic in characteristics
+            ),
+        }
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            **self.summary(),
             "services": [service.to_dict() for service in self.services],
         }
 

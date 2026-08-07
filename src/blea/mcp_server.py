@@ -9,6 +9,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from blea import __version__
 from blea.codec import parse_payload
 from blea.errors import BleaError
 from blea.service import BleService, SessionManager
@@ -68,6 +69,9 @@ async def mcp_lifespan(_: FastMCP[Any]) -> AsyncIterator[None]:
 
 
 mcp = FastMCP("BLEA", lifespan=mcp_lifespan)
+# FastMCP does not expose its low-level server version in the constructor. Without this,
+# initialize reports the MCP SDK version instead of the BLEA product version.
+mcp._mcp_server.version = __version__
 
 
 async def _safe(call: Any) -> dict[str, Any]:
@@ -105,7 +109,7 @@ async def ble_scan(
 
 @mcp.tool()
 async def ble_inspect(device: str, timeout: float = 10.0) -> dict[str, Any]:
-    """Connect to one exactly selected device and discover its GATT profile."""
+    """Discover GATT; timeout applies separately to scan, connect, and GATT operations."""
 
     return await _safe(service.inspect(device, timeout=timeout))
 
@@ -116,8 +120,14 @@ async def ble_probe(
     timeout: float = 10.0,
     max_reads: int = 32,
     read_offset: int = 0,
+    include_profile: bool = False,
 ) -> dict[str, Any]:
-    """Read one GATT page; continue at next_read_offset until it is null."""
+    """Read one GATT page; inspect read_page and follow next_read_offset until null.
+
+    ok=true means the page ran, not that every characteristic read succeeded. timeout applies
+    separately to scan, connect, profile discovery, and each read. The full profile is omitted by
+    default to keep repeated pages compact; use ble_inspect first or set include_profile=true.
+    """
 
     return await _safe(
         service.probe(
@@ -125,13 +135,14 @@ async def ble_probe(
             timeout=timeout,
             max_reads=max_reads,
             read_offset=read_offset,
+            include_profile=include_profile,
         )
     )
 
 
 @mcp.tool()
 async def ble_read(device: str, characteristic: str, timeout: float = 10.0) -> dict[str, Any]:
-    """Read a GATT characteristic and return hex, base64, UTF-8, and raw length evidence."""
+    """Read a characteristic; timeout applies separately to scan, connect, and GATT operations."""
 
     return await _safe(service.read(device, characteristic, timeout=timeout))
 
@@ -143,7 +154,7 @@ async def ble_subscribe(
     duration: float = 10.0,
     timeout: float = 10.0,
 ) -> dict[str, Any]:
-    """Collect notifications from a GATT characteristic for a bounded duration."""
+    """Collect bounded notifications; timeout is per backend operation, not a total deadline."""
 
     return await _safe(
         service.subscribe(device, characteristic, duration=duration, timeout=timeout)
@@ -163,7 +174,7 @@ async def ble_write(
     confirm_device: str | None = None,
     timeout: float = 10.0,
 ) -> dict[str, Any]:
-    """Write only after explicit enablement and exact resolved-device confirmation."""
+    """Write with guards; timeout is per backend operation, not a total tool deadline."""
 
     try:
         data = parse_payload(hex_value=hex_value, text_value=text_value, base64_value=base64_value)
@@ -185,7 +196,7 @@ async def ble_write(
 
 @mcp.tool()
 async def ble_session_open(device: str, timeout: float = 10.0) -> dict[str, Any]:
-    """Open a leased BLE connection for a multi-step diagnostic workflow."""
+    """Open a leased connection; timeout applies per backend operation for the session."""
 
     return await _safe(sessions.open(device, timeout=timeout))
 
@@ -260,7 +271,7 @@ async def ble_session_list() -> dict[str, Any]:
 
 @mcp.tool()
 async def ble_session_close_all() -> dict[str, Any]:
-    """Disconnect and forget every BLE session owned by this MCP server."""
+    """Recover unknown or leaked state by closing every session owned by this server."""
 
     async def close_all() -> dict[str, Any]:
         count = await sessions.close_all()

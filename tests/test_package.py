@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 from contextvars import ContextVar
 from pathlib import Path
@@ -7,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import blea.mcp_server as mcp_server
+from blea import __version__
 from blea.cli import build_parser
 from blea.mcp_server import mcp
 from blea.service import BleService, SessionManager
@@ -32,6 +34,9 @@ def test_cli_exposes_product_surfaces() -> None:
     assert parser.parse_args(["scan", "--json"]).subcommand == "scan"
     probe = parser.parse_args(["probe", "--device", "Sensor", "--read-offset", "32"])
     assert probe.read_offset == 32
+    assert probe.include_profile is True
+    compact_probe = parser.parse_args(["probe", "--device", "Sensor", "--no-include-profile"])
+    assert compact_probe.include_profile is False
     assert parser.parse_args(["mcp"]).subcommand == "mcp"
 
 
@@ -52,6 +57,13 @@ async def test_mcp_exposes_one_shot_and_stateful_tools() -> None:
         "ble_session_list",
         "ble_session_close_all",
     }.issubset(names)
+    assert inspect.signature(mcp_server.ble_probe).parameters["include_profile"].default is False
+
+
+def test_mcp_initialize_reports_blea_version() -> None:
+    options = mcp._mcp_server.create_initialization_options()
+    assert options.server_name == "BLEA"
+    assert options.server_version == __version__
 
 
 @pytest.mark.asyncio

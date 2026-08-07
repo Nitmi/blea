@@ -17,20 +17,42 @@ async def test_scan_and_read_preserve_structured_evidence() -> None:
 
     result = await service.read("id:AA:BB:CC:DD:EE:FF", BATTERY, timeout=0.1)
     assert result["data"] == {"length": 1, "hex": "64", "base64": "ZA==", "utf8": "d"}
+    assert result["operation_timeout_seconds"] == 0.1
+    assert result["timeout_scope"] == "per_backend_operation"
     assert backend.connect_count == backend.disconnect_count == 1
 
     probed = await service.probe("Sensor", timeout=0.1, max_reads=1)
-    assert probed["readable_count"] == 2
-    assert probed["reads_attempted"] == 1
-    assert probed["read_success_count"] == 1
-    assert probed["read_failure_count"] == 0
-    assert probed["reads_remaining"] == 1
+    assert probed["profile_summary"] == {
+        "service_count": 1,
+        "characteristic_count": 2,
+        "readable_characteristic_count": 2,
+        "writable_characteristic_count": 1,
+        "subscribable_characteristic_count": 1,
+    }
+    assert probed["profile_included"] is True
+    assert probed["profile"]["service_count"] == 1
+    assert probed["read_page"] == {
+        "offset": 0,
+        "limit": 1,
+        "attempted_count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "remaining_count": 1,
+        "next_offset": 1,
+        "has_more": True,
+        "has_failures": False,
+        "failure_reasons": {},
+    }
     assert probed["next_read_offset"] == 1
-    assert probed["status"] == "partial"
+    assert probed["status"] == "more"
     assert probed["reads"][0]["data"]["hex"] == "64"
 
-    next_page = await service.probe("Sensor", timeout=0.1, max_reads=1, read_offset=1)
-    assert next_page["read_offset"] == 1
+    next_page = await service.probe(
+        "Sensor", timeout=0.1, max_reads=1, read_offset=1, include_profile=False
+    )
+    assert next_page["read_page"]["offset"] == 1
+    assert next_page["profile_included"] is False
+    assert "profile" not in next_page
     assert next_page["next_read_offset"] is None
     assert next_page["status"] == "complete"
     assert next_page["reads"][0]["characteristic"] == CONTROL
@@ -45,11 +67,12 @@ async def test_probe_summarizes_partial_read_failures() -> None:
     result = await service.probe("Sensor", timeout=0.1, max_reads=2)
 
     assert result["ok"] is True
-    assert result["partial"] is True
-    assert result["read_success_count"] == 1
-    assert result["read_failure_count"] == 1
-    assert result["reads_remaining"] == 0
-    assert result["failure_reasons"] == {"permission_denied": 1}
+    assert result["status"] == "complete_with_failures"
+    assert result["read_page"]["has_more"] is False
+    assert result["read_page"]["has_failures"] is True
+    assert result["read_page"]["success_count"] == 1
+    assert result["read_page"]["failure_count"] == 1
+    assert result["read_page"]["failure_reasons"] == {"permission_denied": 1}
 
 
 @pytest.mark.asyncio
@@ -115,6 +138,7 @@ async def test_stateful_session_reuses_one_connection() -> None:
 
     opened = await manager.open("Sensor", timeout=0.1)
     session_id = opened["session_id"]
+    assert opened["timeout_scope"] == "per_backend_operation"
     await manager.inspect(session_id)
     await manager.read(session_id, BATTERY)
     subscribed = await manager.subscribe(session_id, BATTERY, duration=0)
@@ -136,6 +160,7 @@ async def test_session_manager_lists_and_reaps_idle_connections() -> None:
     listed = manager.list_sessions()
     assert listed["count"] == 1
     assert listed["idle_timeout_seconds"] == 5
+    assert listed["sessions"][0]["operation_timeout_seconds"] == 0.1
 
     closed = await manager.close_idle(5)
 
