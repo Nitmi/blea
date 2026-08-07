@@ -15,21 +15,26 @@ Use BLEA for local BLE work. Prefer BLEA MCP tools when available; otherwise run
    evidence.
 3. Select by exact identifier. Use an exact name only when one observed device has that name.
 4. Inspect the GATT profile before choosing characteristics.
-5. Prefer reads and bounded subscriptions before considering a write.
-6. Close stateful MCP sessions when the task is complete.
+5. When probing, continue with `next_read_offset` until it is `null`. Treat per-characteristic
+   failures as partial evidence; do not discard successful reads from the same page.
+6. Prefer reads and bounded subscriptions before considering a write.
+7. Close stateful MCP sessions when the task is complete. Use `ble_session_list` to recover unknown
+   session state and `ble_session_close_all` when no open lease should remain.
 
 Do not invent UUIDs, payload encodings, pairing requirements, or protocol semantics. Report the
-observed evidence and distinguish it from an inference.
+observed evidence and distinguish it from an inference. Treat `uuid_namespace=custom` as a custom
+128-bit UUID even when its leading bytes resemble a Bluetooth SIG assigned number.
 
 ## Commands and tools
 
 - Diagnose: `ble doctor --json` or `ble_doctor`.
 - Scan: `ble scan --timeout 8 --json` or `ble_scan`.
 - Inspect: `ble inspect --device "id:<identifier>" --json` or `ble_inspect`.
-- Probe readable characteristics: `ble probe --device "id:<identifier>" --json` or `ble_probe`.
+- Probe readable characteristics: use `ble probe --device "id:<identifier>" --max-reads 32
+  --read-offset <offset> --json` or `ble_probe`, following `next_read_offset` across pages.
 - Read: `ble read --device "id:<identifier>" --characteristic <uuid> --json` or `ble_read`.
 - Notify: use `ble subscribe ... --jsonl` or `ble_subscribe` with a bounded duration.
-- Multi-step work: open an MCP session, operate on it, then close it.
+- Multi-step work: open an MCP session, note its `idle_timeout_seconds`, operate on it, then close it.
 - Repeatable work: encode the sequence in a guarded YAML file and run `ble run`.
 
 Read [workflows.md](references/workflows.md) before creating or editing workflow YAML. Read

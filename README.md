@@ -34,6 +34,7 @@ ble doctor --json
 ble scan --timeout 8 --json
 ble inspect --device "id:AA:BB:CC:DD:EE:FF" --json
 ble probe --device "id:AA:BB:CC:DD:EE:FF" --max-reads 16 --json
+ble probe --device "id:AA:BB:CC:DD:EE:FF" --max-reads 16 --read-offset 16 --json
 ble read --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a19 --json
 ble subscribe --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a37 --duration 15 --jsonl
 ```
@@ -43,6 +44,11 @@ platform identifier returned by `scan`; on macOS this is normally a UUID rather 
 
 Every binary value includes `length`, `hex`, `base64`, and replacement-safe UTF-8 representations.
 JSON errors use stable reasons and exit codes suitable for agent recovery.
+
+`probe` is paginated. Follow `next_read_offset` until it is `null`; `failure_reasons` separates
+characteristic-level failures such as pairing requirements from a failed connection. GATT entries
+also include `uuid_namespace`. BLEA reports library descriptions only for canonical Bluetooth Base
+UUIDs, avoiding false standard names inferred from the leading bytes of custom 128-bit UUIDs.
 
 ## Guarded writes
 
@@ -72,6 +78,10 @@ ble mcp
 
 The MCP surface includes one-shot tools and stateful session tools. Sessions let an agent connect
 once, inspect, read, subscribe, optionally perform a guarded write, and then disconnect.
+`ble_session_list` exposes active leases and `ble_session_close_all` provides explicit recovery.
+The server disconnects all sessions when the MCP client exits and reaps an inactive session after
+120 seconds by default. Set `BLEA_SESSION_IDLE_SECONDS` to another positive duration, or `0` to
+disable idle reaping while retaining shutdown cleanup.
 
 This repository is itself an [Agent Plugins 1.0](https://agent-plugins.org/) package:
 

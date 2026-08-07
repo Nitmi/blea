@@ -5,6 +5,8 @@ import platform
 import sys
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
@@ -179,13 +181,21 @@ class BleService:
         }
 
     async def probe(
-        self, selector: str, *, timeout: float = 10.0, max_reads: int = 32
+        self,
+        selector: str,
+        *,
+        timeout: float = 10.0,
+        max_reads: int = 32,
+        read_offset: int = 0,
     ) -> dict[str, Any]:
-        if max_reads < 0:
-            raise ConfigError("max_reads must not be negative")
+        if max_reads <= 0:
+            raise ConfigError("max_reads must be greater than zero")
+        if read_offset < 0:
+            raise ConfigError("read_offset must not be negative")
         started = time.monotonic()
         device, connection = await self._open(selector, timeout=timeout)
         reads: list[dict[str, Any]] = []
+        failure_reasons: dict[str, int] = {}
         try:
             profile = await connection.inspect()
             readable = [
@@ -194,7 +204,8 @@ class BleService:
                 for characteristic in service.characteristics
                 if "read" in characteristic.properties
             ]
-            for characteristic in readable[:max_reads]:
+            window = readable[read_offset : read_offset + max_reads]
+            for characteristic in window:
                 try:
                     data = await connection.read(characteristic.uuid)
                     reads.append(
@@ -209,6 +220,8 @@ class BleService:
                         error = exc.to_dict()
                     else:
                         error = {"reason": type(exc).__name__, "message": str(exc)}
+                    reason = str(error.get("reason", "unknown_error"))
+                    failure_reasons[reason] = failure_reasons.get(reason, 0) + 1
                     reads.append(
                         {
                             "ok": False,
@@ -218,13 +231,27 @@ class BleService:
                     )
         finally:
             await connection.disconnect()
+        success_count = sum(1 for item in reads if item["ok"])
+        failure_count = len(reads) - success_count
+        window_end = min(read_offset + len(reads), len(readable))
+        reads_remaining = max(len(readable) - window_end, 0)
+        next_read_offset = window_end if reads_remaining else None
+        partial = bool(failure_count or reads_remaining)
         return {
             "ok": True,
             "operation": "probe",
+            "status": "partial" if partial else "complete",
+            "partial": partial,
             "device": device.to_dict(),
             "profile": profile.to_dict(),
             "readable_count": len(readable),
+            "read_offset": read_offset,
             "reads_attempted": len(reads),
+            "read_success_count": success_count,
+            "read_failure_count": failure_count,
+            "reads_remaining": reads_remaining,
+            "next_read_offset": next_read_offset,
+            "failure_reasons": dict(sorted(failure_reasons.items())),
             "reads": reads,
             "duration_ms": _duration_ms(started),
             "exit_code": 0,
@@ -317,11 +344,19 @@ class ActiveSession:
     device: DiscoveredDevice
     connection: BleConnection
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    last_used: float = field(default_factory=time.monotonic)
+    closing: bool = False
 
 
 class SessionManager:
-    def __init__(self, service: BleService | None = None) -> None:
+    def __init__(
+        self,
+        service: BleService | None = None,
+        *,
+        idle_timeout_seconds: float | None = None,
+    ) -> None:
         self.service = service or BleService()
+        self.idle_timeout_seconds = idle_timeout_seconds
         self._sessions: dict[str, ActiveSession] = {}
 
     def _get(self, session_id: str) -> ActiveSession:
@@ -329,6 +364,26 @@ class SessionManager:
             return self._sessions[session_id]
         except KeyError as exc:
             raise ConfigError("unknown or closed BLE session", session_id=session_id) from exc
+
+    @asynccontextmanager
+    async def _use(self, session_id: str) -> AsyncIterator[ActiveSession]:
+        session = self._get(session_id)
+        session.last_used = time.monotonic()
+        async with session.lock:
+            if session.closing:
+                raise ConfigError("unknown or closed BLE session", session_id=session_id)
+            try:
+                yield session
+            finally:
+                session.last_used = time.monotonic()
+
+    async def _disconnect(self, session: ActiveSession, *, suppress_errors: bool) -> None:
+        async with session.lock:
+            try:
+                await session.connection.disconnect()
+            except Exception:
+                if not suppress_errors:
+                    raise
 
     async def open(self, selector: str, *, timeout: float = 10.0) -> dict[str, Any]:
         device = await self.service.resolve(selector, timeout=timeout)
@@ -341,12 +396,12 @@ class SessionManager:
             "operation": "session_open",
             "session_id": session_id,
             "device": device.to_dict(),
+            "idle_timeout_seconds": self.idle_timeout_seconds,
             "exit_code": 0,
         }
 
     async def inspect(self, session_id: str) -> dict[str, Any]:
-        session = self._get(session_id)
-        async with session.lock:
+        async with self._use(session_id) as session:
             profile = await session.connection.inspect()
         return {
             "ok": True,
@@ -358,8 +413,7 @@ class SessionManager:
         }
 
     async def read(self, session_id: str, characteristic: str) -> dict[str, Any]:
-        session = self._get(session_id)
-        async with session.lock:
+        async with self._use(session_id) as session:
             data = await session.connection.read(characteristic)
         return {
             "ok": True,
@@ -374,8 +428,7 @@ class SessionManager:
     async def subscribe(
         self, session_id: str, characteristic: str, *, duration: float = 10.0
     ) -> dict[str, Any]:
-        session = self._get(session_id)
-        async with session.lock:
+        async with self._use(session_id) as session:
             notifications = await session.connection.subscribe(characteristic, duration=duration)
         return {
             "ok": True,
@@ -399,11 +452,10 @@ class SessionManager:
         confirm_device: str | None = None,
         read_back: bool = False,
     ) -> dict[str, Any]:
-        session = self._get(session_id)
-        ensure_write_authorized(
-            session.device, allow_write=allow_write, confirm_device=confirm_device
-        )
-        async with session.lock:
+        async with self._use(session_id) as session:
+            ensure_write_authorized(
+                session.device, allow_write=allow_write, confirm_device=confirm_device
+            )
             await session.connection.write(characteristic, data, response=response)
             read_back_data = await session.connection.read(characteristic) if read_back else None
         return {
@@ -420,11 +472,9 @@ class SessionManager:
 
     async def close(self, session_id: str) -> dict[str, Any]:
         session = self._get(session_id)
-        async with session.lock:
-            try:
-                await session.connection.disconnect()
-            finally:
-                self._sessions.pop(session_id, None)
+        session.closing = True
+        self._sessions.pop(session_id, None)
+        await self._disconnect(session, suppress_errors=False)
         return {
             "ok": True,
             "operation": "session_close",
@@ -433,9 +483,50 @@ class SessionManager:
             "exit_code": 0,
         }
 
-    async def close_all(self) -> None:
-        for session_id in list(self._sessions):
-            try:
-                await self.close(session_id)
-            except Exception:
-                self._sessions.pop(session_id, None)
+    def list_sessions(self) -> dict[str, Any]:
+        now = time.monotonic()
+        items = [
+            {
+                "session_id": session.id,
+                "device": session.device.to_dict(),
+                "idle_seconds": round(max(now - session.last_used, 0.0), 3),
+                "busy": session.lock.locked(),
+            }
+            for session in self._sessions.values()
+        ]
+        return {
+            "ok": True,
+            "operation": "session_list",
+            "count": len(items),
+            "idle_timeout_seconds": self.idle_timeout_seconds,
+            "sessions": items,
+            "exit_code": 0,
+        }
+
+    async def close_idle(self, max_idle_seconds: float) -> list[str]:
+        if max_idle_seconds <= 0:
+            raise ConfigError("max_idle_seconds must be greater than zero")
+        now = time.monotonic()
+        expired: list[ActiveSession] = []
+        for session_id, session in list(self._sessions.items()):
+            if session.lock.locked() or now - session.last_used < max_idle_seconds:
+                continue
+            session.closing = True
+            self._sessions.pop(session_id, None)
+            expired.append(session)
+        if expired:
+            await asyncio.gather(
+                *(self._disconnect(session, suppress_errors=True) for session in expired)
+            )
+        return [session.id for session in expired]
+
+    async def close_all(self) -> int:
+        active = list(self._sessions.values())
+        self._sessions.clear()
+        for session in active:
+            session.closing = True
+        if active:
+            await asyncio.gather(
+                *(self._disconnect(session, suppress_errors=True) for session in active)
+            )
+        return len(active)

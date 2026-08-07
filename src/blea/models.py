@@ -4,6 +4,9 @@ import base64
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
+from uuid import UUID
+
+BLUETOOTH_BASE_UUID_SUFFIX = "-0000-1000-8000-00805f9b34fb"
 
 
 def bytes_evidence(value: bytes) -> dict[str, Any]:
@@ -17,6 +20,18 @@ def bytes_evidence(value: bytes) -> dict[str, Any]:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def uuid_namespace(value: str) -> str:
+    """Classify canonical Bluetooth Base UUIDs separately from custom UUIDs."""
+
+    try:
+        normalized = str(UUID(value))
+    except ValueError:
+        return "unknown"
+    if normalized.endswith(BLUETOOTH_BASE_UUID_SUFFIX):
+        return "bluetooth-base"
+    return "custom"
 
 
 @dataclass(frozen=True)
@@ -56,7 +71,12 @@ class DescriptorInfo:
     description: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {"uuid": self.uuid, "handle": self.handle, "description": self.description}
+        return {
+            "uuid": self.uuid,
+            "uuid_namespace": uuid_namespace(self.uuid),
+            "handle": self.handle,
+            "description": self.description,
+        }
 
 
 @dataclass(frozen=True)
@@ -70,6 +90,7 @@ class CharacteristicInfo:
     def to_dict(self) -> dict[str, Any]:
         return {
             "uuid": self.uuid,
+            "uuid_namespace": uuid_namespace(self.uuid),
             "handle": self.handle,
             "description": self.description,
             "properties": list(self.properties),
@@ -87,6 +108,7 @@ class ServiceInfo:
     def to_dict(self) -> dict[str, Any]:
         return {
             "uuid": self.uuid,
+            "uuid_namespace": uuid_namespace(self.uuid),
             "handle": self.handle,
             "description": self.description,
             "characteristics": [item.to_dict() for item in self.characteristics],

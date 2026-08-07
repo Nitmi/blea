@@ -1,6 +1,6 @@
 import pytest
 
-from blea.errors import DeviceUnavailableError, GuardDeniedError
+from blea.errors import ConfigError, DeviceUnavailableError, GuardDeniedError, PermissionDeniedError
 from blea.models import DiscoveredDevice
 from blea.service import BleService, SessionManager
 from tests.fakes import BATTERY, CONTROL, FakeBackend
@@ -22,7 +22,44 @@ async def test_scan_and_read_preserve_structured_evidence() -> None:
     probed = await service.probe("Sensor", timeout=0.1, max_reads=1)
     assert probed["readable_count"] == 2
     assert probed["reads_attempted"] == 1
+    assert probed["read_success_count"] == 1
+    assert probed["read_failure_count"] == 0
+    assert probed["reads_remaining"] == 1
+    assert probed["next_read_offset"] == 1
+    assert probed["status"] == "partial"
     assert probed["reads"][0]["data"]["hex"] == "64"
+
+    next_page = await service.probe("Sensor", timeout=0.1, max_reads=1, read_offset=1)
+    assert next_page["read_offset"] == 1
+    assert next_page["next_read_offset"] is None
+    assert next_page["status"] == "complete"
+    assert next_page["reads"][0]["characteristic"] == CONTROL
+
+
+@pytest.mark.asyncio
+async def test_probe_summarizes_partial_read_failures() -> None:
+    backend = FakeBackend()
+    backend.read_errors[CONTROL] = PermissionDeniedError("pairing required")
+    service = BleService(backend)
+
+    result = await service.probe("Sensor", timeout=0.1, max_reads=2)
+
+    assert result["ok"] is True
+    assert result["partial"] is True
+    assert result["read_success_count"] == 1
+    assert result["read_failure_count"] == 1
+    assert result["reads_remaining"] == 0
+    assert result["failure_reasons"] == {"permission_denied": 1}
+
+
+@pytest.mark.asyncio
+async def test_probe_rejects_non_progressing_windows() -> None:
+    service = BleService(FakeBackend())
+
+    with pytest.raises(ConfigError):
+        await service.probe("Sensor", max_reads=0)
+    with pytest.raises(ConfigError):
+        await service.probe("Sensor", read_offset=-1)
 
 
 @pytest.mark.asyncio
@@ -74,7 +111,7 @@ async def test_write_requires_enablement_and_exact_identifier() -> None:
 @pytest.mark.asyncio
 async def test_stateful_session_reuses_one_connection() -> None:
     backend = FakeBackend()
-    manager = SessionManager(BleService(backend))
+    manager = SessionManager(BleService(backend), idle_timeout_seconds=120)
 
     opened = await manager.open("Sensor", timeout=0.1)
     session_id = opened["session_id"]
@@ -85,4 +122,39 @@ async def test_stateful_session_reuses_one_connection() -> None:
 
     assert subscribed["notification_count"] == 2
     assert backend.connect_count == 1
+    assert backend.disconnect_count == 1
+
+
+@pytest.mark.asyncio
+async def test_session_manager_lists_and_reaps_idle_connections() -> None:
+    backend = FakeBackend()
+    manager = SessionManager(BleService(backend), idle_timeout_seconds=5)
+    opened = await manager.open("Sensor", timeout=0.1)
+    session_id = opened["session_id"]
+    manager._sessions[session_id].last_used -= 10
+
+    listed = manager.list_sessions()
+    assert listed["count"] == 1
+    assert listed["idle_timeout_seconds"] == 5
+
+    closed = await manager.close_idle(5)
+
+    assert closed == [session_id]
+    assert manager.list_sessions()["count"] == 0
+    assert backend.disconnect_count == 1
+
+
+@pytest.mark.asyncio
+async def test_idle_reaper_skips_a_busy_session() -> None:
+    backend = FakeBackend()
+    manager = SessionManager(BleService(backend), idle_timeout_seconds=5)
+    opened = await manager.open("Sensor", timeout=0.1)
+    session = manager._sessions[opened["session_id"]]
+    session.last_used -= 10
+
+    async with session.lock:
+        assert await manager.close_idle(5) == []
+
+    assert manager.list_sessions()["count"] == 1
+    assert await manager.close_all() == 1
     assert backend.disconnect_count == 1

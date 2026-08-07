@@ -42,6 +42,8 @@ class FakeConnection:
         )
 
     async def read(self, characteristic: str) -> bytes:
+        if characteristic in self.backend.read_errors:
+            raise self.backend.read_errors[characteristic]
         return self.backend.values.get(characteristic, b"")
 
     async def write(self, characteristic: str, data: bytes, *, response: bool) -> None:
@@ -71,6 +73,7 @@ class FakeBackend:
             )
         ]
         self.values = {BATTERY: b"\x64", CONTROL: b"\x00"}
+        self.read_errors: dict[str, Exception] = {}
         self.writes: list[tuple[str, str, bytes, bool]] = []
         self.connect_count = 0
         self.disconnect_count = 0

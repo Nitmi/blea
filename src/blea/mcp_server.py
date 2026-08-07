@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+import math
+import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -8,14 +13,68 @@ from blea.codec import parse_payload
 from blea.errors import BleaError
 from blea.service import BleService, SessionManager
 
-mcp = FastMCP("BLEA")
+DEFAULT_SESSION_IDLE_SECONDS = 120.0
+
+
+def _session_idle_seconds() -> float | None:
+    raw = os.environ.get("BLEA_SESSION_IDLE_SECONDS", str(DEFAULT_SESSION_IDLE_SECONDS))
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise RuntimeError("BLEA_SESSION_IDLE_SECONDS must be a number") from exc
+    if not math.isfinite(value) or value < 0:
+        raise RuntimeError("BLEA_SESSION_IDLE_SECONDS must be finite and non-negative")
+    return value or None
+
+
 service = BleService()
-sessions = SessionManager(service)
+sessions = SessionManager(service, idle_timeout_seconds=_session_idle_seconds())
+
+
+async def _reap_idle_sessions(manager: SessionManager) -> None:
+    idle_seconds = manager.idle_timeout_seconds
+    if idle_seconds is None:
+        return
+    interval = min(max(idle_seconds / 2, 1.0), 30.0)
+    while True:
+        await asyncio.sleep(interval)
+        await manager.close_idle(idle_seconds)
+
+
+async def _finish_cleanup(manager: SessionManager) -> int:
+    cleanup = asyncio.create_task(manager.close_all())
+    try:
+        return await asyncio.shield(cleanup)
+    except asyncio.CancelledError:
+        await cleanup
+        raise
+
+
+@asynccontextmanager
+async def mcp_lifespan(_: FastMCP[Any]) -> AsyncIterator[None]:
+    reaper = (
+        asyncio.create_task(_reap_idle_sessions(sessions))
+        if sessions.idle_timeout_seconds is not None
+        else None
+    )
+    try:
+        yield None
+    finally:
+        if reaper is not None:
+            reaper.cancel()
+            with suppress(asyncio.CancelledError):
+                await reaper
+        await _finish_cleanup(sessions)
+
+
+mcp = FastMCP("BLEA", lifespan=mcp_lifespan)
 
 
 async def _safe(call: Any) -> dict[str, Any]:
     try:
-        return await call
+        # WinRT BLE awaits can switch ContextVar contexts on Windows. A child task keeps the
+        # MCP SDK's request context intact so it can serialize and send the tool response.
+        return await asyncio.create_task(call)
     except BleaError as exc:
         return exc.to_dict()
 
@@ -24,7 +83,7 @@ async def _safe(call: Any) -> dict[str, Any]:
 async def ble_doctor(scan_timeout: float = 1.0) -> dict[str, Any]:
     """Check whether the local Bluetooth adapter and OS BLE backend are usable."""
 
-    return await service.doctor(scan_timeout=scan_timeout)
+    return await _safe(service.doctor(scan_timeout=scan_timeout))
 
 
 @mcp.tool()
@@ -52,10 +111,22 @@ async def ble_inspect(device: str, timeout: float = 10.0) -> dict[str, Any]:
 
 
 @mcp.tool()
-async def ble_probe(device: str, timeout: float = 10.0, max_reads: int = 32) -> dict[str, Any]:
-    """Discover GATT and safely read up to max_reads readable characteristics."""
+async def ble_probe(
+    device: str,
+    timeout: float = 10.0,
+    max_reads: int = 32,
+    read_offset: int = 0,
+) -> dict[str, Any]:
+    """Read one GATT page; continue at next_read_offset until it is null."""
 
-    return await _safe(service.probe(device, timeout=timeout, max_reads=max_reads))
+    return await _safe(
+        service.probe(
+            device,
+            timeout=timeout,
+            max_reads=max_reads,
+            read_offset=read_offset,
+        )
+    )
 
 
 @mcp.tool()
@@ -114,7 +185,7 @@ async def ble_write(
 
 @mcp.tool()
 async def ble_session_open(device: str, timeout: float = 10.0) -> dict[str, Any]:
-    """Open a stateful local BLE connection for a multi-step diagnostic workflow."""
+    """Open a leased BLE connection for a multi-step diagnostic workflow."""
 
     return await _safe(sessions.open(device, timeout=timeout))
 
@@ -178,6 +249,29 @@ async def ble_session_close(session_id: str) -> dict[str, Any]:
     """Disconnect and forget an open BLE session."""
 
     return await _safe(sessions.close(session_id))
+
+
+@mcp.tool()
+async def ble_session_list() -> dict[str, Any]:
+    """List open BLE sessions, their devices, idle time, and lease timeout."""
+
+    return sessions.list_sessions()
+
+
+@mcp.tool()
+async def ble_session_close_all() -> dict[str, Any]:
+    """Disconnect and forget every BLE session owned by this MCP server."""
+
+    async def close_all() -> dict[str, Any]:
+        count = await sessions.close_all()
+        return {
+            "ok": True,
+            "operation": "session_close_all",
+            "closed_count": count,
+            "exit_code": 0,
+        }
+
+    return await _safe(close_all())
 
 
 def run() -> None:

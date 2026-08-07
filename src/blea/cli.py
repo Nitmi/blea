@@ -59,9 +59,17 @@ def _print_human(payload: dict[str, Any]) -> None:
     elif operation == "probe":
         print(f"Device: {payload['device']['identifier']}")
         print(f"Services: {payload['profile']['service_count']}")
+        print(
+            "Reads: "
+            f"{payload['read_success_count']} succeeded, "
+            f"{payload['read_failure_count']} failed, "
+            f"{payload['reads_remaining']} remaining"
+        )
         for item in payload["reads"]:
             value = item["data"]["hex"] if item.get("ok") else "ERROR"
             print(f"  {item['characteristic']}  {value}")
+        if payload["next_read_offset"] is not None:
+            print(f"Next read offset: {payload['next_read_offset']}")
     elif operation in {"read", "session_read"}:
         print(payload["data"]["hex"])
     elif operation in {"subscribe", "session_subscribe"}:
@@ -121,7 +129,12 @@ async def command_inspect(args: argparse.Namespace) -> int:
 
 async def command_probe(args: argparse.Namespace) -> int:
     return _emit(
-        await BleService().probe(args.device, timeout=args.timeout, max_reads=args.max_reads),
+        await BleService().probe(
+            args.device,
+            timeout=args.timeout,
+            max_reads=args.max_reads,
+            read_offset=args.read_offset,
+        ),
         args,
     )
 
@@ -208,6 +221,7 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--device", required=True, help="exact identifier or exact name")
     probe.add_argument("--timeout", type=float, default=10.0)
     probe.add_argument("--max-reads", type=int, default=32)
+    probe.add_argument("--read-offset", type=int, default=0)
     _add_json(probe)
     probe.set_defaults(func=command_probe)
 

@@ -14,7 +14,13 @@ from blea.models import (
     GattProfile,
     Notification,
     ServiceInfo,
+    uuid_namespace,
 )
+
+
+def _trusted_uuid_description(uuid: str, description: str | None) -> str | None:
+    # Bleak resolves custom UUIDs by their leading 16 bits, which can produce false SIG names.
+    return description if uuid_namespace(uuid) == "bluetooth-base" else None
 
 
 class BleConnection(Protocol):
@@ -68,28 +74,39 @@ class BleakConnection:
             for service in self._client.services:
                 characteristics: list[CharacteristicInfo] = []
                 for characteristic in service.characteristics:
-                    descriptors = tuple(
-                        DescriptorInfo(
-                            uuid=str(descriptor.uuid),
-                            handle=int(descriptor.handle),
-                            description=getattr(descriptor, "description", None),
+                    descriptors = []
+                    for descriptor in characteristic.descriptors:
+                        descriptor_uuid = str(descriptor.uuid)
+                        descriptors.append(
+                            DescriptorInfo(
+                                uuid=descriptor_uuid,
+                                handle=int(descriptor.handle),
+                                description=_trusted_uuid_description(
+                                    descriptor_uuid, getattr(descriptor, "description", None)
+                                ),
+                            )
                         )
-                        for descriptor in characteristic.descriptors
-                    )
+                    characteristic_uuid = str(characteristic.uuid)
                     characteristics.append(
                         CharacteristicInfo(
-                            uuid=str(characteristic.uuid),
+                            uuid=characteristic_uuid,
                             handle=int(characteristic.handle),
                             properties=tuple(sorted(characteristic.properties)),
-                            description=getattr(characteristic, "description", None),
-                            descriptors=descriptors,
+                            description=_trusted_uuid_description(
+                                characteristic_uuid,
+                                getattr(characteristic, "description", None),
+                            ),
+                            descriptors=tuple(descriptors),
                         )
                     )
+                service_uuid = str(service.uuid)
                 services.append(
                     ServiceInfo(
-                        uuid=str(service.uuid),
+                        uuid=service_uuid,
                         handle=int(service.handle),
-                        description=getattr(service, "description", None),
+                        description=_trusted_uuid_description(
+                            service_uuid, getattr(service, "description", None)
+                        ),
                         characteristics=tuple(characteristics),
                     )
                 )
@@ -118,6 +135,7 @@ class BleakConnection:
 
     async def subscribe(self, characteristic: str, *, duration: float) -> list[Notification]:
         notifications: list[Notification] = []
+        notify_started = False
 
         def callback(sender: object, data: bytearray) -> None:
             sender_uuid = str(getattr(sender, "uuid", characteristic))
@@ -127,8 +145,14 @@ class BleakConnection:
             await asyncio.wait_for(
                 self._client.start_notify(characteristic, callback), timeout=self._timeout
             )
-            await asyncio.sleep(max(duration, 0.0))
-            await asyncio.wait_for(self._client.stop_notify(characteristic), timeout=self._timeout)
+            notify_started = True
+            try:
+                await asyncio.sleep(max(duration, 0.0))
+            finally:
+                if notify_started:
+                    await asyncio.wait_for(
+                        self._client.stop_notify(characteristic), timeout=self._timeout
+                    )
             return notifications
         except Exception as exc:
             raise translate_backend_error(exc, operation="subscribe") from exc
