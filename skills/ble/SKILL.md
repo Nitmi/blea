@@ -52,6 +52,9 @@ observed evidence and distinguish it from an inference. Treat `uuid_namespace=cu
 - Multi-step work: open an MCP session, note its `idle_timeout_seconds`, use
   `ble_session_observe` when the connection should be reused, then close the session.
 - Repeatable work: encode the sequence in a guarded YAML file and run `ble run`.
+- Repeatable request/notification checks: use a YAML `exchange` action with separate
+  `write_characteristic` and `notify_characteristic` fields. Assert the notification count/content,
+  final notification, and `cleanup.ok` when the protocol has deterministic events.
 
 Read [workflows.md](references/workflows.md) before creating or editing workflow YAML. Read
 [safety.md](references/safety.md) before any write, pairing-sensitive operation, firmware update,

@@ -238,6 +238,13 @@ async def test_exchange_requires_guard_and_reports_notifications() -> None:
     assert result["notify_characteristic"] == BATTERY
     assert result["notification_count"] == 2
     assert [item["data"]["utf8"] for item in result["notifications"]] == ["ack", "done"]
+    assert result["cleanup"] == {
+        "ok": True,
+        "started_count": 1,
+        "stopped_count": 1,
+        "failure_count": 0,
+        "errors": [],
+    }
     assert result["read_back"]["utf8"] == "request"
     assert backend.connect_count == backend.disconnect_count == 1
 

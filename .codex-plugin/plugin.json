@@ -1,6 +1,6 @@
 {
   "name": "blea",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Agent-first Bluetooth Low Energy diagnostics and guarded automation.",
   "author": {
     "name": "Nitmi",

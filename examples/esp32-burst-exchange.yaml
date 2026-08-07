@@ -1,0 +1,46 @@
+name: esp32-s3-burst-exchange
+device: "id:REPLACE_WITH_EXACT_IDENTIFIER"
+timeout: 10
+policy:
+  allow_write: true
+  confirm_device: "REPLACE_WITH_EXACT_IDENTIFIER"
+
+steps:
+  - id: inspect
+    action: inspect
+    expect:
+      service_count_at_least: 1
+
+  - id: current-state
+    action: read
+    characteristic: "b1ea0005-6d4e-4b4e-9b57-4d54d3f60001"
+    requires: [inspect]
+    expect:
+      min_length: 1
+
+  - id: burst-five
+    action: exchange
+    write_characteristic: "b1ea0005-6d4e-4b4e-9b57-4d54d3f60001"
+    notify_characteristic: "b1ea0005-6d4e-4b4e-9b57-4d54d3f60001"
+    value:
+      text: "burst:5"
+    duration: 3
+    response: true
+    read_back: true
+    dangerous: true
+    requires: [inspect, current-state]
+    expect:
+      notification_count: 6
+      notifications_contain_utf8:
+        - "ok:burst:5"
+      notification_utf8_counts:
+        "burst=": 5
+      notifications_contain_hex:
+        - "62757273743d"
+      final_notification:
+        utf8_endswith: "left=0"
+      cleanup:
+        ok: true
+        started_count: 1
+        stopped_count: 1
+

@@ -3,11 +3,16 @@ from __future__ import annotations
 import asyncio
 import math
 import os
+import warnings
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+with warnings.catch_warnings():
+    # mcp 1.29 currently asks pydantic-settings to resolve FastMCP's forward-referenced
+    # lifespan field during import. It is harmless for BLEA's stdio server, but noisy for agents.
+    warnings.filterwarnings("ignore", message=r"Field 'lifespan' has an incomplete definition:.*")
+    from mcp.server.fastmcp import FastMCP
 
 from blea import __version__
 from blea.codec import parse_payload
@@ -68,7 +73,9 @@ async def mcp_lifespan(_: FastMCP[Any]) -> AsyncIterator[None]:
         await _finish_cleanup(sessions)
 
 
-mcp = FastMCP("BLEA", lifespan=mcp_lifespan)
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", message=r"Field 'lifespan' has an incomplete definition:.*")
+    mcp = FastMCP("BLEA", lifespan=mcp_lifespan)
 # FastMCP does not expose its low-level server version in the constructor. Without this,
 # initialize reports the MCP SDK version instead of the BLEA product version.
 mcp._mcp_server.version = __version__

@@ -574,6 +574,14 @@ class BleService:
             "sample_duration_seconds": duration,
             "notification_count": len(notifications),
             "notifications": [item.to_dict() for item in notifications],
+            # A successful exchange means the one requested subscription was stopped.
+            "cleanup": {
+                "ok": True,
+                "started_count": 1,
+                "stopped_count": 1,
+                "failure_count": 0,
+                "errors": [],
+            },
             **_operation_timeout(timeout),
             "duration_ms": _duration_ms(started),
             "exit_code": 0,

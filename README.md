@@ -84,13 +84,26 @@ ble write \
   --json
 ```
 
-YAML writes add two more guards: the workflow must enable writes and each write step must declare
-`dangerous: true` plus successful prerequisite steps. See `examples/guarded-write.yaml`.
+YAML writes and exchanges add two more guards: the workflow must enable writes and each state-changing
+step must declare `dangerous: true` plus successful prerequisite steps. The policy must also carry an
+exact `confirm_device` identifier. See `examples/guarded-write.yaml` and
+`examples/esp32-burst-exchange.yaml`.
 
 For protocols where a write triggers notifications, use `exchange`. It enables the notification
 subscription before performing the guarded write, then collects events for a bounded duration.
 The write and notify characteristics may be the same or different. This avoids the race created by
 launching standalone session subscribe and write operations concurrently.
+
+For repeatable checks, an `exchange` step can assert the exact notification count, UTF-8 or Hex
+content, the final notification, and subscription cleanup. Run a guarded YAML workflow with the
+independent invocation gate:
+
+```shell
+ble run examples/esp32-burst-exchange.yaml --allow-write --json
+```
+
+Replace the example's device identifier and confirmation with the exact value returned by a fresh
+scan before running it.
 
 ## MCP and Agent Plugin
 
