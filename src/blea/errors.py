@@ -80,7 +80,16 @@ def translate_backend_error(exc: Exception, *, operation: str) -> BleaError:
     name = type(exc).__name__
     message = str(exc) or name
     lowered = message.casefold()
-    if any(token in lowered for token in ("permission", "access denied", "not authorized")):
+    if any(
+        token in lowered
+        for token in (
+            "permission",
+            "access denied",
+            "not authorized",
+            "insufficient authentication",
+            "insufficient encryption",
+        )
+    ):
         return PermissionDeniedError(
             f"BLE {operation} was denied by the operating system",
             operation=operation,

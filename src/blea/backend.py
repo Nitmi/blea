@@ -45,10 +45,11 @@ class BleakConnection:
     def __init__(self, device: DiscoveredDevice, *, timeout: float) -> None:
         target = device.native if device.native is not None else device.identifier
         self._client = BleakClient(target, timeout=timeout)
+        self._timeout = timeout
 
     async def connect(self) -> None:
         try:
-            await self._client.connect()
+            await asyncio.wait_for(self._client.connect(), timeout=self._timeout)
             if not self._client.is_connected:
                 raise RuntimeError("backend returned without an active connection")
         except Exception as exc:
@@ -57,7 +58,7 @@ class BleakConnection:
     async def disconnect(self) -> None:
         try:
             if self._client.is_connected:
-                await self._client.disconnect()
+                await asyncio.wait_for(self._client.disconnect(), timeout=self._timeout)
         except Exception as exc:
             raise translate_backend_error(exc, operation="disconnect") from exc
 
@@ -98,13 +99,20 @@ class BleakConnection:
 
     async def read(self, characteristic: str) -> bytes:
         try:
-            return bytes(await self._client.read_gatt_char(characteristic))
+            return bytes(
+                await asyncio.wait_for(
+                    self._client.read_gatt_char(characteristic), timeout=self._timeout
+                )
+            )
         except Exception as exc:
             raise translate_backend_error(exc, operation="read") from exc
 
     async def write(self, characteristic: str, data: bytes, *, response: bool) -> None:
         try:
-            await self._client.write_gatt_char(characteristic, data, response=response)
+            await asyncio.wait_for(
+                self._client.write_gatt_char(characteristic, data, response=response),
+                timeout=self._timeout,
+            )
         except Exception as exc:
             raise translate_backend_error(exc, operation="write") from exc
 
@@ -116,9 +124,11 @@ class BleakConnection:
             notifications.append(Notification(sender_uuid, bytes(data)))
 
         try:
-            await self._client.start_notify(characteristic, callback)
+            await asyncio.wait_for(
+                self._client.start_notify(characteristic, callback), timeout=self._timeout
+            )
             await asyncio.sleep(max(duration, 0.0))
-            await self._client.stop_notify(characteristic)
+            await asyncio.wait_for(self._client.stop_notify(characteristic), timeout=self._timeout)
             return notifications
         except Exception as exc:
             raise translate_backend_error(exc, operation="subscribe") from exc
@@ -131,10 +141,13 @@ class BleakBackend:
         self, *, timeout: float, service_uuids: tuple[str, ...] = ()
     ) -> list[DiscoveredDevice]:
         try:
-            discovered = await BleakScanner.discover(
-                timeout=timeout,
-                return_adv=True,
-                service_uuids=list(service_uuids) or None,
+            discovered = await asyncio.wait_for(
+                BleakScanner.discover(
+                    timeout=timeout,
+                    return_adv=True,
+                    service_uuids=list(service_uuids) or None,
+                ),
+                timeout=timeout + 2.0,
             )
         except Exception as exc:
             raise translate_backend_error(exc, operation="scan") from exc
