@@ -38,6 +38,12 @@ ble probe --device "id:AA:BB:CC:DD:EE:FF" --max-reads 16 --read-offset 16 --json
 ble read --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a19 --json
 ble subscribe --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a37 --duration 15 --jsonl
 ble observe --device "id:AA:BB:CC:DD:EE:FF" --duration 10 --jsonl
+ble exchange \
+  --device "id:AA:BB:CC:DD:EE:FF" \
+  --write-characteristic 12345678-1234-1234-1234-1234567890ab \
+  --notify-characteristic 87654321-4321-4321-4321-ba0987654321 \
+  --text ping --duration 5 --allow-write \
+  --confirm-device "AA:BB:CC:DD:EE:FF" --jsonl
 ```
 
 Device names are accepted only when exactly one observed device has that name. Prefer the
@@ -81,6 +87,11 @@ ble write \
 YAML writes add two more guards: the workflow must enable writes and each write step must declare
 `dangerous: true` plus successful prerequisite steps. See `examples/guarded-write.yaml`.
 
+For protocols where a write triggers notifications, use `exchange`. It enables the notification
+subscription before performing the guarded write, then collects events for a bounded duration.
+The write and notify characteristics may be the same or different. This avoids the race created by
+launching standalone session subscribe and write operations concurrently.
+
 ## MCP and Agent Plugin
 
 Start the local stdio server directly:
@@ -90,7 +101,8 @@ ble mcp
 ```
 
 The MCP surface includes one-shot tools and stateful session tools. Sessions let an agent connect
-once, inspect, read, observe, subscribe, optionally perform a guarded write, and then disconnect.
+once, inspect, read, observe, subscribe, perform a guarded request/notification exchange or write,
+and then disconnect. `ble_exchange` and `ble_session_exchange` atomically subscribe before writing.
 `ble_session_list` exposes active leases and `ble_session_close_all` provides explicit recovery.
 The server disconnects all sessions when the MCP client exits and reaps an inactive session after
 120 seconds by default. Set `BLEA_SESSION_IDLE_SECONDS` to another positive duration, or `0` to

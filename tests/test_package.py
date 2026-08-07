@@ -39,6 +39,21 @@ def test_cli_exposes_product_surfaces() -> None:
     assert compact_probe.include_profile is False
     observe = parser.parse_args(["observe", "--device", "Sensor", "--characteristic", "2a19"])
     assert observe.characteristics == ["2a19"]
+    exchange = parser.parse_args(
+        [
+            "exchange",
+            "--device",
+            "Sensor",
+            "--write-characteristic",
+            "control",
+            "--notify-characteristic",
+            "events",
+            "--text",
+            "ping",
+        ]
+    )
+    assert exchange.text_value == "ping"
+    assert exchange.duration == 5.0
     assert parser.parse_args(["mcp"]).subcommand == "mcp"
 
 
@@ -51,6 +66,7 @@ async def test_mcp_exposes_one_shot_and_stateful_tools() -> None:
         "ble_inspect",
         "ble_probe",
         "ble_observe",
+        "ble_exchange",
         "ble_read",
         "ble_subscribe",
         "ble_write",
@@ -58,6 +74,7 @@ async def test_mcp_exposes_one_shot_and_stateful_tools() -> None:
         "ble_session_read",
         "ble_session_close",
         "ble_session_observe",
+        "ble_session_exchange",
         "ble_session_list",
         "ble_session_close_all",
     }.issubset(names)

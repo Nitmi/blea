@@ -36,6 +36,17 @@ class BleConnection(Protocol):
 
     async def subscribe(self, characteristic: str, *, duration: float) -> list[Notification]: ...
 
+    async def exchange(
+        self,
+        write_characteristic: str,
+        notify_characteristic: str,
+        data: bytes,
+        *,
+        duration: float,
+        response: bool,
+        read_back: bool,
+    ) -> tuple[list[Notification], bytes | None]: ...
+
     async def observe(
         self, characteristics: tuple[str, ...], *, duration: float
     ) -> dict[str, Any]: ...
@@ -160,6 +171,46 @@ class BleakConnection:
             return notifications
         except Exception as exc:
             raise translate_backend_error(exc, operation="subscribe") from exc
+
+    async def exchange(
+        self,
+        write_characteristic: str,
+        notify_characteristic: str,
+        data: bytes,
+        *,
+        duration: float,
+        response: bool,
+        read_back: bool,
+    ) -> tuple[list[Notification], bytes | None]:
+        notifications: list[Notification] = []
+
+        def callback(sender: object, value: bytearray) -> None:
+            sender_uuid = str(getattr(sender, "uuid", notify_characteristic))
+            notifications.append(Notification(sender_uuid, bytes(value)))
+
+        try:
+            await asyncio.wait_for(
+                self._client.start_notify(notify_characteristic, callback), timeout=self._timeout
+            )
+        except Exception as exc:
+            raise translate_backend_error(exc, operation="subscribe") from exc
+
+        cleanup_error: Exception | None = None
+        try:
+            await self.write(write_characteristic, data, response=response)
+            read_back_data = await self.read(write_characteristic) if read_back else None
+            await asyncio.sleep(max(duration, 0.0))
+        finally:
+            try:
+                await asyncio.wait_for(
+                    self._client.stop_notify(notify_characteristic), timeout=self._timeout
+                )
+            except Exception as exc:
+                cleanup_error = translate_backend_error(exc, operation="unsubscribe")
+
+        if cleanup_error is not None:
+            raise cleanup_error
+        return notifications, read_back_data
 
     async def observe(self, characteristics: tuple[str, ...], *, duration: float) -> dict[str, Any]:
         notifications: list[Notification] = []

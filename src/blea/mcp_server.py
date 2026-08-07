@@ -186,6 +186,43 @@ async def ble_observe(
 
 
 @mcp.tool()
+async def ble_exchange(
+    device: str,
+    write_characteristic: str,
+    notify_characteristic: str,
+    hex_value: str | None = None,
+    text_value: str | None = None,
+    base64_value: str | None = None,
+    duration: float = 5.0,
+    response: bool = True,
+    read_back: bool = False,
+    allow_write: bool = False,
+    confirm_device: str | None = None,
+    timeout: float = 10.0,
+) -> dict[str, Any]:
+    """Subscribe first, perform one guarded write, then collect resulting notifications."""
+
+    try:
+        data = parse_payload(hex_value=hex_value, text_value=text_value, base64_value=base64_value)
+    except BleaError as exc:
+        return exc.to_dict()
+    return await _safe(
+        service.exchange(
+            device,
+            write_characteristic,
+            notify_characteristic,
+            data,
+            duration=duration,
+            response=response,
+            read_back=read_back,
+            allow_write=allow_write,
+            confirm_device=confirm_device,
+            timeout=timeout,
+        )
+    )
+
+
+@mcp.tool()
 async def ble_write(
     device: str,
     characteristic: str,
@@ -261,6 +298,41 @@ async def ble_session_observe(
             session_id,
             characteristics=tuple(characteristics) if characteristics else None,
             duration=duration,
+        )
+    )
+
+
+@mcp.tool()
+async def ble_session_exchange(
+    session_id: str,
+    write_characteristic: str,
+    notify_characteristic: str,
+    hex_value: str | None = None,
+    text_value: str | None = None,
+    base64_value: str | None = None,
+    duration: float = 5.0,
+    response: bool = True,
+    read_back: bool = False,
+    allow_write: bool = False,
+    confirm_device: str | None = None,
+) -> dict[str, Any]:
+    """Atomically subscribe, write, and collect notifications through one open session."""
+
+    try:
+        data = parse_payload(hex_value=hex_value, text_value=text_value, base64_value=base64_value)
+    except BleaError as exc:
+        return exc.to_dict()
+    return await _safe(
+        sessions.exchange(
+            session_id,
+            write_characteristic,
+            notify_characteristic,
+            data,
+            duration=duration,
+            response=response,
+            read_back=read_back,
+            allow_write=allow_write,
+            confirm_device=confirm_device,
         )
     )
 

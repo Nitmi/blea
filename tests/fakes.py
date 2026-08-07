@@ -57,6 +57,27 @@ class FakeConnection:
             Notification(characteristic, b"\x63", "2026-08-07T00:00:01.000Z"),
         ]
 
+    async def exchange(
+        self,
+        write_characteristic: str,
+        notify_characteristic: str,
+        data: bytes,
+        *,
+        duration: float,
+        response: bool,
+        read_back: bool,
+    ) -> tuple[list[Notification], bytes | None]:
+        del duration
+        await self.write(write_characteristic, data, response=response)
+        read_back_data = await self.read(write_characteristic) if read_back else None
+        return (
+            [
+                Notification(notify_characteristic, b"ack", "2026-08-07T00:00:00.000Z"),
+                Notification(notify_characteristic, b"done", "2026-08-07T00:00:01.000Z"),
+            ],
+            read_back_data,
+        )
+
     async def observe(
         self, characteristics: tuple[str, ...], *, duration: float
     ) -> dict[str, object]:

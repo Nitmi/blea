@@ -1,4 +1,5 @@
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 
@@ -56,6 +57,35 @@ class HangingBatchNotificationClient(BatchNotificationClient):
             await asyncio.sleep(60)
             return
         await super().start_notify(characteristic, callback)
+
+
+class ExchangeClient:
+    def __init__(self, target: object, *, timeout: float) -> None:
+        del target, timeout
+        self.is_connected = True
+        self.events: list[str] = []
+        self.callback: object | None = None
+        self.notify_characteristic = ""
+
+    async def start_notify(self, characteristic: str, callback: object) -> None:
+        self.events.append("subscribe")
+        self.callback = callback
+        self.notify_characteristic = characteristic
+
+    async def write_gatt_char(self, characteristic: str, data: bytes, *, response: bool) -> None:
+        del characteristic, data, response
+        self.events.append("write")
+        assert callable(self.callback)
+        self.callback(SimpleNamespace(uuid=self.notify_characteristic), bytearray(b"reply"))
+
+    async def read_gatt_char(self, characteristic: str) -> bytes:
+        del characteristic
+        self.events.append("read")
+        return b"state"
+
+    async def stop_notify(self, characteristic: str) -> None:
+        del characteristic
+        self.events.append("unsubscribe")
 
 
 @pytest.mark.asyncio
@@ -130,3 +160,50 @@ async def test_cancelled_batch_observe_cleans_up_started_subscriptions(
 
     assert connection._client.started == ["first"]
     assert connection._client.stopped == ["first"]
+
+
+@pytest.mark.asyncio
+async def test_exchange_subscribes_before_writing_and_cleans_up(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(blea.backend, "BleakClient", ExchangeClient)
+    connection = BleakConnection(DiscoveredDevice("test-device"), timeout=0.1)
+
+    notifications, read_back = await connection.exchange(
+        "write-characteristic",
+        "notify-characteristic",
+        b"request",
+        duration=0,
+        response=True,
+        read_back=True,
+    )
+
+    assert connection._client.events == ["subscribe", "write", "read", "unsubscribe"]
+    assert [item.data for item in notifications] == [b"reply"]
+    assert read_back == b"state"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_exchange_stops_notifications(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(blea.backend, "BleakClient", ExchangeClient)
+    connection = BleakConnection(DiscoveredDevice("test-device"), timeout=0.1)
+    task = asyncio.create_task(
+        connection.exchange(
+            "write-characteristic",
+            "notify-characteristic",
+            b"request",
+            duration=60,
+            response=True,
+            read_back=False,
+        )
+    )
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert connection._client.events == ["subscribe", "write", "unsubscribe"]

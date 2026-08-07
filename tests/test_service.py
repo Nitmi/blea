@@ -205,6 +205,44 @@ async def test_write_requires_enablement_and_exact_identifier() -> None:
 
 
 @pytest.mark.asyncio
+async def test_exchange_requires_guard_and_reports_notifications() -> None:
+    backend = FakeBackend()
+    service = BleService(backend)
+
+    with pytest.raises(GuardDeniedError):
+        await service.exchange(
+            "Sensor",
+            CONTROL,
+            BATTERY,
+            b"request",
+            duration=0,
+            timeout=0.1,
+        )
+
+    assert backend.connect_count == 0
+
+    result = await service.exchange(
+        "Sensor",
+        CONTROL,
+        BATTERY,
+        b"request",
+        duration=0,
+        allow_write=True,
+        confirm_device="AA:BB:CC:DD:EE:FF",
+        read_back=True,
+        timeout=0.1,
+    )
+
+    assert result["operation"] == "exchange"
+    assert result["write_characteristic"] == CONTROL
+    assert result["notify_characteristic"] == BATTERY
+    assert result["notification_count"] == 2
+    assert [item["data"]["utf8"] for item in result["notifications"]] == ["ack", "done"]
+    assert result["read_back"]["utf8"] == "request"
+    assert backend.connect_count == backend.disconnect_count == 1
+
+
+@pytest.mark.asyncio
 async def test_stateful_session_reuses_one_connection() -> None:
     backend = FakeBackend()
     manager = SessionManager(BleService(backend), idle_timeout_seconds=120)
@@ -220,6 +258,29 @@ async def test_stateful_session_reuses_one_connection() -> None:
     assert subscribed["notification_count"] == 2
     assert backend.connect_count == 1
     assert backend.disconnect_count == 1
+
+
+@pytest.mark.asyncio
+async def test_session_exchange_uses_one_locked_connection() -> None:
+    backend = FakeBackend()
+    manager = SessionManager(BleService(backend), idle_timeout_seconds=120)
+    opened = await manager.open("Sensor", timeout=0.1)
+
+    result = await manager.exchange(
+        opened["session_id"],
+        CONTROL,
+        BATTERY,
+        b"request",
+        duration=0,
+        allow_write=True,
+        confirm_device="AA:BB:CC:DD:EE:FF",
+    )
+    await manager.close(opened["session_id"])
+
+    assert result["operation"] == "session_exchange"
+    assert result["session_id"] == opened["session_id"]
+    assert result["notification_count"] == 2
+    assert backend.connect_count == backend.disconnect_count == 1
 
 
 @pytest.mark.asyncio

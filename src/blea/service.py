@@ -540,6 +540,83 @@ class BleService:
             "exit_code": 0,
         }
 
+    async def _exchange_connected(
+        self,
+        device: DiscoveredDevice,
+        connection: BleConnection,
+        write_characteristic: str,
+        notify_characteristic: str,
+        data: bytes,
+        *,
+        duration: float,
+        response: bool,
+        read_back: bool,
+        timeout: float,
+    ) -> dict[str, Any]:
+        started = time.monotonic()
+        notifications, read_back_data = await connection.exchange(
+            write_characteristic,
+            notify_characteristic,
+            data,
+            duration=duration,
+            response=response,
+            read_back=read_back,
+        )
+        return {
+            "ok": True,
+            "operation": "exchange",
+            "device": device.to_dict(),
+            "write_characteristic": write_characteristic,
+            "notify_characteristic": notify_characteristic,
+            "written": bytes_evidence(data),
+            "response": response,
+            "read_back": bytes_evidence(read_back_data) if read_back_data is not None else None,
+            "sample_duration_seconds": duration,
+            "notification_count": len(notifications),
+            "notifications": [item.to_dict() for item in notifications],
+            **_operation_timeout(timeout),
+            "duration_ms": _duration_ms(started),
+            "exit_code": 0,
+        }
+
+    async def exchange(
+        self,
+        selector: str,
+        write_characteristic: str,
+        notify_characteristic: str,
+        data: bytes,
+        *,
+        duration: float = 5.0,
+        response: bool = True,
+        allow_write: bool = False,
+        confirm_device: str | None = None,
+        read_back: bool = False,
+        timeout: float = 10.0,
+    ) -> dict[str, Any]:
+        if duration < 0:
+            raise ConfigError("exchange duration must not be negative")
+        started = time.monotonic()
+        device = await self.resolve(selector, timeout=timeout)
+        ensure_write_authorized(device, allow_write=allow_write, confirm_device=confirm_device)
+        connection = self.backend.connection(device, timeout=timeout)
+        await connection.connect()
+        try:
+            result = await self._exchange_connected(
+                device,
+                connection,
+                write_characteristic,
+                notify_characteristic,
+                data,
+                duration=duration,
+                response=response,
+                read_back=read_back,
+                timeout=timeout,
+            )
+        finally:
+            await connection.disconnect()
+        result["duration_ms"] = _duration_ms(started)
+        return result
+
 
 @dataclass
 class ActiveSession:
@@ -700,6 +777,40 @@ class SessionManager:
             **_operation_timeout(session.operation_timeout_seconds),
             "exit_code": 0,
         }
+
+    async def exchange(
+        self,
+        session_id: str,
+        write_characteristic: str,
+        notify_characteristic: str,
+        data: bytes,
+        *,
+        duration: float = 5.0,
+        response: bool = True,
+        allow_write: bool = False,
+        confirm_device: str | None = None,
+        read_back: bool = False,
+    ) -> dict[str, Any]:
+        if duration < 0:
+            raise ConfigError("exchange duration must not be negative")
+        async with self._use(session_id) as session:
+            ensure_write_authorized(
+                session.device, allow_write=allow_write, confirm_device=confirm_device
+            )
+            result = await self.service._exchange_connected(
+                session.device,
+                session.connection,
+                write_characteristic,
+                notify_characteristic,
+                data,
+                duration=duration,
+                response=response,
+                read_back=read_back,
+                timeout=session.operation_timeout_seconds,
+            )
+        result["operation"] = "session_exchange"
+        result["session_id"] = session_id
+        return result
 
     async def close(self, session_id: str) -> dict[str, Any]:
         session = self._get(session_id)

@@ -100,6 +100,16 @@ def _print_human(payload: dict[str, Any]) -> None:
         )
         for item in payload["notifications"]:
             print(f"{item['timestamp']} {item['characteristic']} {item['data']['hex']}")
+    elif operation in {"exchange", "session_exchange"}:
+        print(f"Wrote {payload['written']['length']} bytes to {payload['write_characteristic']}")
+        if payload.get("read_back"):
+            print(f"Read back: {payload['read_back']['hex']}")
+        for notification in payload["notifications"]:
+            print(
+                f"{notification['timestamp']} {notification['characteristic']} "
+                f"{notification['data']['hex']}"
+            )
+        print(f"Notifications: {payload['notification_count']}")
     elif operation in {"write", "session_write"}:
         print(f"Wrote {payload['written']['length']} bytes to {payload['characteristic']}")
         if payload.get("read_back"):
@@ -117,9 +127,12 @@ def _emit(payload: dict[str, Any], args: argparse.Namespace) -> int:
         if payload.get("operation") == "scan":
             for device in payload.get("devices", []):
                 print(_json({"type": "device", **device}))
-        elif payload.get("operation") == "subscribe" or payload.get("operation") in {
+        elif payload.get("operation") in {
+            "subscribe",
             "observe",
             "session_observe",
+            "exchange",
+            "session_exchange",
         }:
             for notification in payload.get("notifications", []):
                 print(_json({"type": "notification", **notification}))
@@ -188,6 +201,29 @@ async def command_observe(args: argparse.Namespace) -> int:
             args.device,
             characteristics=tuple(args.characteristics) if args.characteristics else None,
             duration=args.duration,
+            timeout=args.timeout,
+        ),
+        args,
+    )
+
+
+async def command_exchange(args: argparse.Namespace) -> int:
+    data = parse_payload(
+        hex_value=args.hex_value,
+        text_value=args.text_value,
+        base64_value=args.base64_value,
+    )
+    return _emit(
+        await BleService().exchange(
+            args.device,
+            args.write_characteristic,
+            args.notify_characteristic,
+            data,
+            duration=args.duration,
+            response=args.response,
+            read_back=args.read_back,
+            allow_write=args.allow_write,
+            confirm_device=args.confirm_device,
             timeout=args.timeout,
         ),
         args,
@@ -297,6 +333,27 @@ def build_parser() -> argparse.ArgumentParser:
     observe.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
     _add_json(observe, jsonl=True)
     observe.set_defaults(func=command_observe)
+
+    exchange = subparsers.add_parser(
+        "exchange", help="subscribe, perform one guarded write, and collect notifications"
+    )
+    exchange.add_argument("--device", required=True)
+    exchange.add_argument("--write-characteristic", required=True)
+    exchange.add_argument("--notify-characteristic", required=True)
+    exchange_payload = exchange.add_mutually_exclusive_group(required=True)
+    exchange_payload.add_argument("--hex", dest="hex_value")
+    exchange_payload.add_argument("--text", dest="text_value")
+    exchange_payload.add_argument("--base64", dest="base64_value")
+    exchange.add_argument("--duration", type=float, default=5.0)
+    exchange.add_argument("--response", action=argparse.BooleanOptionalAction, default=True)
+    exchange.add_argument("--read-back", action="store_true")
+    exchange.add_argument("--allow-write", action="store_true")
+    exchange.add_argument(
+        "--confirm-device", help="must exactly match the resolved device identifier"
+    )
+    exchange.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
+    _add_json(exchange, jsonl=True)
+    exchange.set_defaults(func=command_exchange)
 
     write = subparsers.add_parser("write", help="perform an explicitly authorized GATT write")
     write.add_argument("--device", required=True)
