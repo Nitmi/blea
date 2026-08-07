@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "blea"
+version = "0.1.0"
+description = "Agent-first Bluetooth Low Energy diagnostics and guarded automation"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Nitmi" },
+]
+keywords = ["bluetooth", "ble", "hardware", "cli", "mcp", "agent"]
+classifiers = [
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+  "bleak>=1.1,<2",
+  "mcp>=1.26,<2",
+  "PyYAML>=6.0.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/Nitmi/blea"
+Repository = "https://github.com/Nitmi/blea"
+Issues = "https://github.com/Nitmi/blea/issues"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.25",
+  "ruff>=0.11",
+]
+
+[project.scripts]
+ble = "blea.cli:main"
+blea = "blea.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/blea"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+

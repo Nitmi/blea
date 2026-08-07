@@ -1,0 +1,29 @@
+name: guarded-device-command
+device: "id:AA:BB:CC:DD:EE:FF"
+timeout: 10
+policy:
+  allow_write: true
+  confirm_device: "AA:BB:CC:DD:EE:FF"
+steps:
+  - id: inspect
+    action: inspect
+    expect:
+      service_count_at_least: 1
+
+  - id: current-state
+    action: read
+    characteristic: "12345678-1234-1234-1234-1234567890ab"
+    requires: [inspect]
+    expect:
+      min_length: 1
+
+  - id: guarded-command
+    action: write
+    characteristic: "12345678-1234-1234-1234-1234567890ab"
+    value:
+      hex: "01"
+    response: true
+    read_back: true
+    dangerous: true
+    requires: [inspect, current-state]
+
