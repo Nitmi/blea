@@ -37,6 +37,18 @@ def test_cli_exposes_product_surfaces() -> None:
     assert probe.include_profile is True
     compact_probe = parser.parse_args(["probe", "--device", "Sensor", "--no-include-profile"])
     assert compact_probe.include_profile is False
+    capture = parser.parse_args(
+        [
+            "capture",
+            "--device",
+            "Sensor",
+            "--output",
+            "sensor.blea.jsonl",
+            "--redact-identifiers",
+        ]
+    )
+    assert capture.max_reads == 128
+    assert capture.redact_identifiers is True
     observe = parser.parse_args(["observe", "--device", "Sensor", "--characteristic", "2a19"])
     assert observe.characteristics == ["2a19"]
     exchange = parser.parse_args(
@@ -65,6 +77,7 @@ async def test_mcp_exposes_one_shot_and_stateful_tools() -> None:
         "ble_scan",
         "ble_inspect",
         "ble_probe",
+        "ble_capture",
         "ble_observe",
         "ble_exchange",
         "ble_read",

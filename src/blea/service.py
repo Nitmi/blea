@@ -5,15 +5,26 @@ import platform
 import sys
 import time
 import uuid
+from collections import Counter
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Any
 
+from blea import __version__
 from blea.backend import BleakBackend, BleBackend, BleConnection
-from blea.errors import ConfigError, DeviceUnavailableError, GuardDeniedError, ProtocolError
-from blea.models import DiscoveredDevice, bytes_evidence
+from blea.errors import (
+    BleaError,
+    ConfigError,
+    DeviceUnavailableError,
+    GuardDeniedError,
+    ProtocolError,
+    translate_backend_error,
+)
+from blea.evidence import EvidenceWriter, validate_events
+from blea.models import DiscoveredDevice, GattProfile, bytes_evidence
 
 
 def _duration_ms(started: float) -> int:
@@ -32,6 +43,12 @@ def _package_version(name: str) -> str | None:
         return version(name)
     except PackageNotFoundError:
         return None
+
+
+def _stable_error(exc: Exception, *, operation: str) -> dict[str, Any]:
+    if isinstance(exc, BleaError):
+        return exc.to_dict()
+    return translate_backend_error(exc, operation=operation).to_dict()
 
 
 def ensure_write_authorized(
@@ -124,6 +141,12 @@ class BleService:
         if not selector.strip():
             raise ConfigError("device selector must not be empty")
         devices = await self.backend.discover(timeout=timeout)
+        return self._select_device(selector, devices)
+
+    @staticmethod
+    def _select_device(selector: str, devices: list[DiscoveredDevice]) -> DiscoveredDevice:
+        if not selector.strip():
+            raise ConfigError("device selector must not be empty")
         kind, separator, raw_target = selector.partition(":")
         if separator and kind.casefold() in {"id", "name"}:
             mode = kind.casefold()
@@ -337,12 +360,14 @@ class BleService:
         characteristics: tuple[str, ...] | None,
         duration: float,
         timeout: float,
+        profile: GattProfile | None = None,
     ) -> dict[str, Any]:
         if duration < 0:
             raise ConfigError("observation duration must not be negative")
 
         started = time.monotonic()
-        profile = await connection.inspect()
+        if profile is None:
+            profile = await connection.inspect()
         discovered = [
             characteristic
             for service in profile.services
@@ -503,6 +528,254 @@ class BleService:
         finally:
             await connection.disconnect()
         result["duration_ms"] = _duration_ms(started)
+        return result
+
+    async def capture(
+        self,
+        selector: str,
+        output: str | Path,
+        *,
+        service_uuid: str | None = None,
+        max_reads: int = 128,
+        read_offset: int = 0,
+        observe_duration: float = 10.0,
+        timeout: float = 10.0,
+        redact_identifiers: bool = False,
+    ) -> dict[str, Any]:
+        """Capture read-only BLE evidence into one atomically written JSONL package."""
+
+        if not selector.strip():
+            raise ConfigError("device selector must not be empty")
+        if max_reads <= 0:
+            raise ConfigError("max_reads must be greater than zero")
+        if read_offset < 0:
+            raise ConfigError("read_offset must not be negative")
+        if observe_duration < 0:
+            raise ConfigError("observation duration must not be negative")
+        if timeout <= 0:
+            raise ConfigError("operation timeout must be greater than zero")
+
+        started = time.monotonic()
+        writer = EvidenceWriter(redact_identifiers=redact_identifiers)
+        parameters = {
+            "selector": selector,
+            "service_uuid": service_uuid,
+            "max_reads": max_reads,
+            "read_offset": read_offset,
+            "observe_duration": observe_duration,
+            "timeout": timeout,
+            "redact_identifiers": redact_identifiers,
+        }
+        writer.add(
+            "manifest",
+            source={
+                "blea_version": __version__,
+                "platform": platform.platform(),
+                "python": sys.version.split()[0],
+                "bleak_version": _package_version("bleak"),
+                "backend": self.backend.name,
+            },
+            data={"parameters": parameters, "read_only": True},
+        )
+
+        failures: list[dict[str, Any]] = []
+        fatal_error: dict[str, Any] | None = None
+        device: DiscoveredDevice | None = None
+        connection: BleConnection | None = None
+        connect_attempted = False
+        profile: GattProfile | None = None
+        read_records: list[dict[str, Any]] = []
+        observation: dict[str, Any] | None = None
+
+        def record_error(
+            operation: str,
+            exc: Exception | dict[str, Any],
+            *,
+            characteristic: str | None = None,
+        ) -> dict[str, Any]:
+            error = exc if isinstance(exc, dict) else _stable_error(exc, operation=operation)
+            data: dict[str, Any] = {"operation": operation, "error": error}
+            if characteristic is not None:
+                data["characteristic"] = characteristic
+            writer.add("error", data=data)
+            failures.append({"operation": operation, **data})
+            return error
+
+        services = (service_uuid,) if service_uuid else ()
+        try:
+            devices = await self.backend.discover(timeout=timeout, service_uuids=services)
+            device = self._select_device(selector, devices)
+        except Exception as exc:
+            fatal_error = record_error("discover", exc)
+
+        if device is not None:
+            writer.add("advertisement", device=device.to_dict())
+            try:
+                connection = self.backend.connection(device, timeout=timeout)
+                connect_attempted = True
+                await connection.connect()
+            except Exception as exc:
+                fatal_error = record_error("connect", exc)
+
+        if connection is not None and fatal_error is None:
+            try:
+                profile = await connection.inspect()
+                writer.add("profile", data=profile.to_dict())
+            except Exception as exc:
+                fatal_error = record_error("service_discovery", exc)
+
+        read_page: dict[str, Any] = {
+            "offset": read_offset,
+            "limit": max_reads,
+            "attempted_count": 0,
+            "success_count": 0,
+            "failure_count": 0,
+            "remaining_count": 0,
+            "next_offset": None,
+            "has_more": False,
+        }
+        if profile is not None and connection is not None and fatal_error is None:
+            readable = sorted(
+                (
+                    characteristic
+                    for service in profile.services
+                    for characteristic in service.characteristics
+                    if "read" in characteristic.properties
+                ),
+                key=lambda item: (item.uuid.casefold(), item.handle),
+            )
+            window = readable[read_offset : read_offset + max_reads]
+            for characteristic in window:
+                try:
+                    value = await connection.read(characteristic.uuid)
+                    record = {
+                        "characteristic": characteristic.uuid,
+                        "ok": True,
+                        "value": bytes_evidence(value),
+                    }
+                    read_records.append(record)
+                    writer.add("read", data=record)
+                except Exception as exc:
+                    error = _stable_error(exc, operation="read")
+                    record = {
+                        "characteristic": characteristic.uuid,
+                        "ok": False,
+                        "error": error,
+                    }
+                    read_records.append(record)
+                    writer.add("read", data=record)
+                    failures.append({"operation": "read", **record})
+            next_offset = read_offset + len(window)
+            remaining = max(len(readable) - next_offset, 0)
+            read_page.update(
+                {
+                    "attempted_count": len(window),
+                    "success_count": sum(1 for item in read_records if item["ok"]),
+                    "failure_count": sum(1 for item in read_records if not item["ok"]),
+                    "remaining_count": remaining,
+                    "next_offset": next_offset if remaining else None,
+                    "has_more": bool(remaining),
+                }
+            )
+
+            try:
+                observation = await self._observe_connected(
+                    device,
+                    connection,
+                    characteristics=None,
+                    duration=observe_duration,
+                    timeout=timeout,
+                    profile=profile,
+                )
+                for subscription in observation["subscriptions"]:
+                    if not subscription.get("ok"):
+                        record_error(
+                            "subscribe",
+                            subscription.get("error")
+                            or ProtocolError("subscription failed").to_dict(),
+                            characteristic=str(subscription.get("characteristic")),
+                        )
+                cleanup = observation.get("cleanup", {})
+                for cleanup_error in cleanup.get("errors", []):
+                    details = cleanup_error.get("details", {})
+                    record_error(
+                        "unsubscribe",
+                        cleanup_error,
+                        characteristic=details.get("characteristic"),
+                    )
+                for notification in observation["notifications"]:
+                    writer.add(
+                        "notification",
+                        timestamp=notification["timestamp"],
+                        data={
+                            "characteristic": notification["characteristic"],
+                            "value": notification["data"],
+                        },
+                    )
+            except Exception as exc:
+                record_error("observe", exc)
+
+        if connection is not None and connect_attempted:
+            try:
+                await connection.disconnect()
+            except Exception as exc:
+                record_error("disconnect", exc)
+
+        status = (
+            "failed"
+            if fatal_error is not None
+            else ("complete_with_failures" if failures else "complete")
+        )
+        event_counts = Counter(event["kind"] for event in writer.events)
+        event_counts["summary"] += 1
+        summary: dict[str, Any] = {
+            "status": status,
+            "complete": True,
+            "event_count": len(writer.events) + 1,
+            "event_counts": dict(sorted(event_counts.items())),
+            "read_page": read_page,
+            "read_summary": {
+                "attempted_count": len(read_records),
+                "success_count": sum(1 for item in read_records if item["ok"]),
+                "failure_count": sum(1 for item in read_records if not item["ok"]),
+            },
+            "failure_count": len(failures),
+            "failures": failures,
+        }
+        if observation is not None:
+            summary["observation"] = {
+                key: observation[key]
+                for key in (
+                    "status",
+                    "selection",
+                    "subscription_summary",
+                    "subscriptions",
+                    "sample_duration_seconds",
+                    "notification_count",
+                    "notification_counts",
+                    "cleanup",
+                )
+            }
+        writer.add("summary", data=summary)
+        destination = writer.write(output)
+        evidence_report = validate_events(writer.events)
+        result: dict[str, Any] = {
+            "ok": fatal_error is None,
+            "operation": "capture",
+            "status": status,
+            "output": str(destination),
+            "capture_id": writer.capture_id,
+            "event_count": evidence_report["event_count"],
+            "device": writer.events[1].get("device") if device is not None else None,
+            "read_page": read_page,
+            "read_summary": summary["read_summary"],
+            "observation": summary.get("observation"),
+            **_operation_timeout(timeout),
+            "duration_ms": _duration_ms(started),
+            "exit_code": fatal_error.get("exit_code", 0) if fatal_error else 0,
+        }
+        if fatal_error is not None:
+            result["error"] = fatal_error
         return result
 
     async def write(

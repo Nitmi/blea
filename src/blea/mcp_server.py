@@ -148,6 +148,38 @@ async def ble_probe(
 
 
 @mcp.tool()
+async def ble_capture(
+    device: str,
+    output: str,
+    service_uuid: str | None = None,
+    max_reads: int = 128,
+    read_offset: int = 0,
+    observe_duration: float = 10.0,
+    redact_identifiers: bool = False,
+    timeout: float = 10.0,
+) -> dict[str, Any]:
+    """Save a validated read-only BLE evidence package as .blea.jsonl.
+
+    Capture performs one discovery and one connection, then records advertisements, GATT,
+    bounded reads, and bounded notifications. It never writes, pairs, or changes device
+    configuration. The output path is replaced atomically only after the final summary validates.
+    """
+
+    return await _safe(
+        service.capture(
+            device,
+            output,
+            service_uuid=service_uuid,
+            max_reads=max_reads,
+            read_offset=read_offset,
+            observe_duration=observe_duration,
+            timeout=timeout,
+            redact_identifiers=redact_identifiers,
+        )
+    )
+
+
+@mcp.tool()
 async def ble_read(device: str, characteristic: str, timeout: float = 10.0) -> dict[str, Any]:
     """Read a characteristic; timeout applies separately to scan, connect, and GATT operations."""
 

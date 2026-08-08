@@ -1,6 +1,6 @@
 ---
 name: ble
-description: Use BLEA to diagnose and automate local Bluetooth Low Energy devices. Trigger for BLE adapter or permission problems, nearby-device scans, deterministic device selection, GATT service discovery, characteristic reads, bounded multi-characteristic observation, notification subscriptions, guarded request/notification exchanges, guarded writes, repeatable BLE YAML workflows, and raw-byte evidence collection through the `ble` CLI or BLEA MCP tools.
+description: Use BLEA to diagnose and automate local Bluetooth Low Energy devices. Trigger for BLE adapter or permission problems, nearby-device scans, deterministic device selection, GATT service discovery, characteristic reads, bounded multi-characteristic observation, notification subscriptions, read-only JSONL evidence capture, guarded request/notification exchanges, guarded writes, repeatable BLE YAML workflows, and raw-byte evidence collection through the `ble` CLI or BLEA MCP tools.
 ---
 
 # BLEA
@@ -23,10 +23,17 @@ Use BLEA for local BLE work. Prefer BLEA MCP tools when available; otherwise run
    per-characteristic failures.
 7. Prefer reads and bounded observation before considering a write. Treat a silent observation
    window as evidence only for that window, not proof that a characteristic never emits events.
-8. When one authorized write is expected to trigger notifications, use `ble_exchange` or
+8. After the initial diagnosis, save a portable evidence package with `ble_capture` or
+   `ble capture`. Use the exact resolved identifier, choose an explicit `.blea.jsonl` output path,
+   and set `--redact-identifiers` when the package will leave the workstation. Capture is read-only:
+   it records advertisements, the GATT profile, bounded readable-characteristic results, bounded
+   notifications, operation errors, and a final integrity summary. It never writes, pairs, or
+   changes configuration. Keep the file as the authoritative artifact and report its path plus
+   summary status to the user.
+9. When one authorized write is expected to trigger notifications, use `ble_exchange` or
    `ble_session_exchange`. These operations establish the subscription before writing and collect
    the response atomically; do not run standalone session subscribe and write tools concurrently.
-9. Close the exact stateful MCP session once when the task is complete. Use `ble_session_list` when
+10. Close the exact stateful MCP session once when the task is complete. Use `ble_session_list` when
    cleanup is uncertain. Use `ble_session_close_all` only when a session ID is unknown, an explicit
    close failed, or leaked state must be recovered; do not call it after a successful close.
 
@@ -47,6 +54,11 @@ observed evidence and distinguish it from an inference. Treat `uuid_namespace=cu
 - Notify: use `ble subscribe ... --jsonl` or `ble_subscribe` with a bounded duration.
 - Observe all event-capable traits: use `ble observe --device "id:<identifier>" --duration 10
   --jsonl` or `ble_observe`. Pass `--characteristic <uuid>` repeatedly for explicit selection.
+- Capture a unified read-only evidence package: use
+  `ble capture --device "id:<identifier>" --output capture.blea.jsonl --observe-duration 10
+  --max-reads 128 --redact-identifiers --json` or `ble_capture`. `--read-offset` starts at a
+  deterministic readable-characteristic offset and the result's `read_page.next_offset` indicates
+  whether a larger limit or a follow-up capture is needed.
 - Guarded request/notification exchange: use `ble exchange ... --jsonl`, `ble_exchange`, or
   `ble_session_exchange` to subscribe before one write and collect its resulting events.
 - Multi-step work: open an MCP session, note its `idle_timeout_seconds`, use
@@ -63,6 +75,9 @@ lock, actuator, or other state-changing action.
 `timeout` is a per-backend-operation bound, not a total command or tool deadline. Allow for device
 discovery, connection, profile discovery, each requested read, and any subscription duration when
 setting an outer Agent/tool timeout.
+
+Capture files use Evidence Format v1. Read [evidence-format-v1.md](../../docs/evidence-format-v1.md)
+when an agent needs to validate, redact, compare, or build replay tooling around a package.
 
 ## Write policy
 

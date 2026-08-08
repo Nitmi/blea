@@ -41,6 +41,8 @@ def _print_human(payload: dict[str, Any]) -> None:
     if not payload.get("ok", False):
         error = payload.get("error") or payload
         print(f"[ERROR] {error.get('message') or error.get('reason')}", file=sys.stderr)
+        if operation == "capture" and payload.get("output"):
+            print(f"Evidence: {payload['output']}", file=sys.stderr)
         return
     if operation == "doctor":
         print(f"BLE backend: {payload['backend']}")
@@ -75,6 +77,15 @@ def _print_human(payload: dict[str, Any]) -> None:
             print(f"  {item['characteristic']}  {value}")
         if payload["next_read_offset"] is not None:
             print(f"Next read offset: {payload['next_read_offset']}")
+    elif operation == "capture":
+        print(f"Evidence: {payload['output']}")
+        if payload.get("device"):
+            print(f"Device: {payload['device']['identifier']}")
+        reads = payload["read_summary"]
+        print(f"Reads: {reads['success_count']} succeeded, {reads['failure_count']} failed")
+        observation = payload.get("observation") or {}
+        print(f"Notifications: {observation.get('notification_count', 0)}")
+        print(f"Status: {payload['status']}")
     elif operation in {"read", "session_read"}:
         print(payload["data"]["hex"])
     elif operation in {"subscribe", "session_subscribe"}:
@@ -172,6 +183,22 @@ async def command_probe(args: argparse.Namespace) -> int:
             max_reads=args.max_reads,
             read_offset=args.read_offset,
             include_profile=args.include_profile,
+        ),
+        args,
+    )
+
+
+async def command_capture(args: argparse.Namespace) -> int:
+    return _emit(
+        await BleService().capture(
+            args.device,
+            args.output,
+            service_uuid=args.service,
+            max_reads=args.max_reads,
+            read_offset=args.read_offset,
+            observe_duration=args.observe_duration,
+            timeout=args.timeout,
+            redact_identifiers=args.redact_identifiers,
         ),
         args,
     )
@@ -303,6 +330,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_json(probe)
     probe.set_defaults(func=command_probe)
+
+    capture = subparsers.add_parser(
+        "capture", help="save read-only BLE advertisements, GATT, reads, and notifications"
+    )
+    capture.add_argument("--device", required=True, help="exact identifier or exact name")
+    capture.add_argument("--output", type=Path, required=True, help="destination .blea.jsonl")
+    capture.add_argument("--service", help="filter by advertised service UUID")
+    capture.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
+    capture.add_argument("--max-reads", type=int, default=128)
+    capture.add_argument("--read-offset", type=int, default=0)
+    capture.add_argument("--observe-duration", type=float, default=10.0)
+    capture.add_argument(
+        "--redact-identifiers",
+        action="store_true",
+        help="replace platform identifiers with stable per-capture tokens",
+    )
+    _add_json(capture)
+    capture.set_defaults(func=command_capture)
 
     read = subparsers.add_parser("read", help="read one GATT characteristic")
     read.add_argument("--device", required=True)

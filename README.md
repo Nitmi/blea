@@ -69,6 +69,25 @@ bounded duration. Omit `--characteristic` to select all event-capable traits, or
 explicit selection. The result separates subscription failures, cleanup failures, and notification
 events; a quiet window is evidence only for that sample window.
 
+Save a complete read-only evidence package after diagnosis:
+
+```shell
+ble capture \
+  --device "id:AA:BB:CC:DD:EE:FF" \
+  --output capture.blea.jsonl \
+  --max-reads 128 \
+  --observe-duration 10 \
+  --redact-identifiers \
+  --json
+```
+
+`capture` records the advertisement, normalized GATT profile, each readable-characteristic result,
+bounded notifications, operation errors, and a validated final summary. It performs no writes,
+pairing, or configuration changes and replaces the destination only after an atomic close. The
+JSONL file is the authoritative artifact; the command's JSON result is a compact summary. The
+Evidence Format v1 contract and deterministic validator live in
+[`docs/evidence-format-v1.md`](docs/evidence-format-v1.md).
+
 ## Guarded writes
 
 A write requires both `--allow-write` and an exact confirmation of the resolved identifier:
