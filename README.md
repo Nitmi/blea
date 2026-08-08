@@ -220,3 +220,7 @@ uv run pytest
 Unit tests use a fake BLE backend and do not require nearby hardware. CI runs on Windows, macOS,
 and Linux. Each CI job also runs `examples/replay-read-only.yaml` against the checked-in complete
 evidence fixture, providing an end-to-end CLI and Workflow smoke test with no adapter.
+
+Real adapter support is tracked separately from CI. See
+[`docs/platform-acceptance.md`](docs/platform-acceptance.md) for the Windows/macOS/Linux hardware
+matrix, privacy gate, command sequence, and report template.

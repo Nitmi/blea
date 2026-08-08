@@ -101,6 +101,8 @@ when an agent needs to validate, redact, or build replay tooling around a packag
 paths, ignored fields, identity guards, or CI exit behavior.
 Read [replay-format-v1.md](../../docs/replay-format-v1.md) before interpreting missing evidence,
 captured failures, notification timing, replay MCP mode, or the read-only safety boundary.
+Read [platform-acceptance.md](../../docs/platform-acceptance.md) before claiming platform support,
+running a cross-platform hardware acceptance, or publishing a real-device capture fixture.
 
 ## Write policy
 
