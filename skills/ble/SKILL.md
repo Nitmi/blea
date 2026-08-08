@@ -1,6 +1,6 @@
 ---
 name: ble
-description: Use BLEA to diagnose and automate local Bluetooth Low Energy devices. Trigger for BLE adapter or permission problems, nearby-device scans, deterministic device selection, GATT discovery and reads, bounded notification observation, read-only JSONL evidence capture, offline semantic comparison of BLE captures, guarded request/notification exchanges, guarded writes, repeatable BLE YAML workflows, and raw-byte evidence collection through the `ble` CLI or BLEA MCP tools.
+description: Use BLEA to diagnose and automate local Bluetooth Low Energy devices. Trigger for BLE adapter or permission problems, nearby-device scans, deterministic device selection, GATT discovery and reads, bounded notification observation, read-only JSONL evidence capture, offline semantic comparison or replay of BLE captures, adapter-free CI tests, guarded request/notification exchanges, guarded writes, repeatable BLE YAML workflows, and raw-byte evidence collection through the `ble` CLI or BLEA MCP tools.
 ---
 
 # BLEA
@@ -34,10 +34,14 @@ Use BLEA for local BLE work. Prefer BLEA MCP tools when available; otherwise run
    guard for normal comparisons and use `allow_different_devices` only for an intentional
    cross-device comparison. Treat the 5 dBm RSSI tolerance as noise control; use strict RSSI only
    when exact signal samples matter. Diff never scans, connects, pairs, subscribes, or writes.
-10. When one authorized write is expected to trigger notifications, use `ble_exchange` or
+10. Reproduce captured behavior offline with `ble_replay` or `ble replay`. Use instant timing for
+   Agent debugging and CI. Treat `replay_miss` as absent evidence, not device behavior, and do not
+   infer a successful subscription from a notify property alone. Replay never accesses a physical
+   adapter and never sends or simulates writes.
+11. When one authorized write is expected to trigger notifications, use `ble_exchange` or
    `ble_session_exchange`. These operations establish the subscription before writing and collect
    the response atomically; do not run standalone session subscribe and write tools concurrently.
-11. Close the exact stateful MCP session once when the task is complete. Use `ble_session_list` when
+12. Close the exact stateful MCP session once when the task is complete. Use `ble_session_list` when
    cleanup is uncertain. Use `ble_session_close_all` only when a session ID is unknown, an explicit
    close failed, or leaked state must be recovered; do not call it after a successful close.
 
@@ -67,6 +71,13 @@ observed evidence and distinguish it from an inference. Treat `uuid_namespace=cu
   `ble diff before.blea.jsonl after.blea.jsonl --json` or `ble_diff`. Inspect `added`, `removed`,
   and `changed` paths. Use `--strict-rssi` only when needed, and use `--fail-on-change` only when CI
   should return exit code 3 for a valid comparison containing differences.
+- Replay one captured operation offline: use `ble_replay` or
+  `ble replay capture.blea.jsonl <scan|inspect|probe|read|subscribe|observe|run>`. The captured
+  identifier is selected automatically unless an exact device is supplied. Keep `speed=0` for
+  deterministic immediate output; use a positive speed multiplier only when event gaps matter.
+- Serve normal MCP tools from evidence: start `ble replay capture.blea.jsonl mcp`. Verify each
+  result has the expected `replay.capture_id` and `replay.read_only=true`. This mode is useful when
+  an Agent or CI integration should exercise its existing `ble_read`/`ble_observe` path unchanged.
 - Guarded request/notification exchange: use `ble exchange ... --jsonl`, `ble_exchange`, or
   `ble_session_exchange` to subscribe before one write and collect its resulting events.
 - Multi-step work: open an MCP session, note its `idle_timeout_seconds`, use
@@ -88,6 +99,8 @@ Capture files use Evidence Format v1. Read [evidence-format-v1.md](../../docs/ev
 when an agent needs to validate, redact, or build replay tooling around a package. Read
 [diff-format-v1.md](../../docs/diff-format-v1.md) before interpreting comparison policy, stable
 paths, ignored fields, identity guards, or CI exit behavior.
+Read [replay-format-v1.md](../../docs/replay-format-v1.md) before interpreting missing evidence,
+captured failures, notification timing, replay MCP mode, or the read-only safety boundary.
 
 ## Write policy
 

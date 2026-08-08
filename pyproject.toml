@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "blea"
-version = "0.5.0"
-description = "Agent-first BLE diagnostics, evidence comparison, and guarded automation"
+version = "0.6.0"
+description = "Agent-first BLE diagnostics, evidence replay, and guarded automation"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }

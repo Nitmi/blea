@@ -3,8 +3,8 @@
 [![CI](https://github.com/Nitmi/blea/actions/workflows/ci.yml/badge.svg)](https://github.com/Nitmi/blea/actions/workflows/ci.yml)
 
 BLEA — **Bluetooth Low Energy Automation** — is an agent-first BLE toolkit. It combines a
-deterministic `ble` CLI, a local stateful MCP server, a guarded workflow runner, and a portable
-Agent Plugin package.
+deterministic `ble` CLI, a local stateful MCP server, a guarded workflow runner, offline evidence
+replay, and a portable Agent Plugin package.
 
 The project is designed for the BLE work agents repeatedly need: checking OS Bluetooth access,
 finding the right nearby device, discovering GATT services, preserving and comparing raw byte
@@ -40,6 +40,8 @@ ble read --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a19 --json
 ble subscribe --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a37 --duration 15 --jsonl
 ble observe --device "id:AA:BB:CC:DD:EE:FF" --duration 10 --jsonl
 ble diff before.blea.jsonl after.blea.jsonl --json
+ble replay capture.blea.jsonl inspect --json
+ble replay capture.blea.jsonl read --characteristic 2a19 --json
 ble exchange \
   --device "id:AA:BB:CC:DD:EE:FF" \
   --write-characteristic 12345678-1234-1234-1234-1234567890ab \
@@ -106,6 +108,24 @@ produce separate Hex, Base64, and UTF-8 noise. A normal difference exits success
 `--fail-on-change` returns code `3` after printing the complete result for CI. The contract lives in
 [`docs/diff-format-v1.md`](docs/diff-format-v1.md).
 
+Replay a complete evidence package without a Bluetooth adapter or physical device:
+
+```shell
+ble replay capture.blea.jsonl inspect --json
+ble replay capture.blea.jsonl probe --max-reads 32 --json
+ble replay capture.blea.jsonl read --characteristic 2a19 --json
+ble replay capture.blea.jsonl observe --duration 10 --jsonl
+ble replay capture.blea.jsonl run examples/replay-read-only.yaml --json
+```
+
+Replay reconstructs advertisements, GATT, reads, captured failures, subscription outcomes, and
+the notification timeline through the same read-only backend interfaces used for live devices.
+The default `--speed 0` mode is immediate and deterministic; place a positive `--speed` before the
+operation to preserve recorded notification gaps at that multiplier. Missing observations return
+the stable `replay_miss` reason instead of an invented value or success. Replay never accesses a
+real adapter and never sends or simulates writes or exchanges. The full contract lives in
+[`docs/replay-format-v1.md`](docs/replay-format-v1.md).
+
 ## Guarded writes
 
 A write requires both `--allow-write` and an exact confirmation of the resolved identifier:
@@ -150,8 +170,8 @@ Start the local stdio server directly:
 ble mcp
 ```
 
-The MCP surface includes one-shot tools, the offline `ble_diff` evidence comparator, and stateful
-session tools. Sessions let an agent connect
+The MCP surface includes one-shot tools, the offline `ble_diff` comparator, the offline
+`ble_replay` runner, and stateful session tools. Sessions let an agent connect
 once, inspect, read, observe, subscribe, perform a guarded request/notification exchange or write,
 and then disconnect. `ble_exchange` and `ble_session_exchange` atomically subscribe before writing.
 `ble_session_list` exposes active leases and `ble_session_close_all` provides explicit recovery.
@@ -161,6 +181,17 @@ disable idle reaping while retaining shutdown cleanup.
 
 Close a known session with `ble_session_close`. Reserve `ble_session_close_all` for recovering an
 unknown session ID, a failed explicit close, or confirmed leaked state.
+
+To expose the normal MCP BLE tools against one capture instead of hardware, launch a dedicated
+replay server:
+
+```shell
+ble replay capture.blea.jsonl mcp
+```
+
+Every replay-backed BLE operation result identifies the evidence and carries
+`replay.read_only=true`. Even if a client invokes an existing write or exchange tool with
+live-device authorization fields, the ReplayBackend rejects it.
 
 This repository is itself an [Agent Plugins 1.0](https://agent-plugins.org/) package:
 
@@ -187,4 +218,5 @@ uv run pytest
 ```
 
 Unit tests use a fake BLE backend and do not require nearby hardware. CI runs on Windows, macOS,
-and Linux.
+and Linux. Each CI job also runs `examples/replay-read-only.yaml` against the checked-in complete
+evidence fixture, providing an end-to-end CLI and Workflow smoke test with no adapter.

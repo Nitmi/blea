@@ -12,6 +12,7 @@ from blea import __version__
 from blea.codec import parse_payload
 from blea.diff import DEFAULT_RSSI_TOLERANCE_DBM, diff_evidence
 from blea.errors import EXIT_CONFIG_ERROR, EXIT_DEVICE_UNAVAILABLE, BleaError
+from blea.replay import ReplayBackend, replay_operation
 from blea.service import BleService
 from blea.workflow import run_workflow
 
@@ -45,6 +46,9 @@ def _print_human(payload: dict[str, Any]) -> None:
         if operation == "capture" and payload.get("output"):
             print(f"Evidence: {payload['output']}", file=sys.stderr)
         return
+    replay = payload.get("replay")
+    if isinstance(replay, dict):
+        print(f"Replay evidence: {replay['evidence']} ({replay['timing']})")
     if operation == "doctor":
         print(f"BLE backend: {payload['backend']}")
         print("Adapter: available")
@@ -229,6 +233,34 @@ def command_diff(args: argparse.Namespace) -> int:
     )
 
 
+async def command_replay(args: argparse.Namespace) -> int:
+    characteristics = getattr(args, "characteristics", None)
+    result = await replay_operation(
+        args.evidence,
+        args.replay_operation,
+        speed=args.speed,
+        device=getattr(args, "device", None),
+        characteristic=getattr(args, "characteristic", None),
+        characteristics=tuple(characteristics) if characteristics else None,
+        workflow=getattr(args, "workflow", None),
+        timeout=getattr(args, "timeout", 10.0),
+        duration=getattr(args, "duration", 10.0),
+        max_reads=getattr(args, "max_reads", 32),
+        read_offset=getattr(args, "read_offset", 0),
+        include_profile=getattr(args, "include_profile", True),
+        name_contains=getattr(args, "name_contains", None),
+        service_uuid=getattr(args, "service", None),
+    )
+    return _emit(result, args)
+
+
+def command_replay_mcp(args: argparse.Namespace) -> int:
+    from blea.mcp_server import run
+
+    run(ReplayBackend(args.evidence, speed=args.speed))
+    return 0
+
+
 async def command_read(args: argparse.Namespace) -> int:
     return _emit(
         await BleService().read(args.device, args.characteristic, timeout=args.timeout), args
@@ -402,6 +434,96 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_json(diff)
     diff.set_defaults(func=command_diff)
+
+    replay = subparsers.add_parser(
+        "replay", help="replay read-only BLE operations from evidence without an adapter"
+    )
+    replay.add_argument("evidence", type=Path, help="complete .blea.jsonl evidence file")
+    replay.add_argument(
+        "--speed",
+        type=float,
+        default=0.0,
+        metavar="MULTIPLIER",
+        help="notification timing multiplier; 0 replays instantly (default: 0)",
+    )
+    replay_operations = replay.add_subparsers(dest="replay_operation", required=True)
+
+    replay_scan = replay_operations.add_parser("scan", help="replay captured advertisement data")
+    replay_scan.add_argument("--timeout", type=float, default=5.0)
+    replay_scan.add_argument("--name-contains")
+    replay_scan.add_argument("--service", help="filter by advertised service UUID")
+    _add_json(replay_scan, jsonl=True)
+    replay_scan.set_defaults(func=command_replay)
+
+    replay_inspect = replay_operations.add_parser(
+        "inspect", help="replay the captured GATT profile"
+    )
+    replay_inspect.add_argument("--device", help="exact identifier or exact name")
+    replay_inspect.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
+    _add_json(replay_inspect)
+    replay_inspect.set_defaults(func=command_replay)
+
+    replay_probe = replay_operations.add_parser(
+        "probe", help="replay the captured GATT profile and readable values"
+    )
+    replay_probe.add_argument("--device", help="exact identifier or exact name")
+    replay_probe.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
+    replay_probe.add_argument("--max-reads", type=int, default=32)
+    replay_probe.add_argument("--read-offset", type=int, default=0)
+    replay_probe.add_argument(
+        "--include-profile",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="include the full GATT profile in structured output",
+    )
+    _add_json(replay_probe)
+    replay_probe.set_defaults(func=command_replay)
+
+    replay_read = replay_operations.add_parser("read", help="replay one captured read")
+    replay_read.add_argument("--device", help="exact identifier or exact name")
+    replay_read.add_argument("--characteristic", required=True)
+    replay_read.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
+    _add_json(replay_read)
+    replay_read.set_defaults(func=command_replay)
+
+    replay_subscribe = replay_operations.add_parser(
+        "subscribe", help="replay notifications for one characteristic"
+    )
+    replay_subscribe.add_argument("--device", help="exact identifier or exact name")
+    replay_subscribe.add_argument("--characteristic", required=True)
+    replay_subscribe.add_argument("--duration", type=float, default=10.0)
+    replay_subscribe.add_argument(
+        "--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP
+    )
+    _add_json(replay_subscribe, jsonl=True)
+    replay_subscribe.set_defaults(func=command_replay)
+
+    replay_observe = replay_operations.add_parser(
+        "observe", help="replay all or selected captured notification streams"
+    )
+    replay_observe.add_argument("--device", help="exact identifier or exact name")
+    replay_observe.add_argument(
+        "--characteristic",
+        dest="characteristics",
+        action="append",
+        help="repeat to select characteristics; defaults to all notify/indicate traits",
+    )
+    replay_observe.add_argument("--duration", type=float, default=10.0)
+    replay_observe.add_argument("--timeout", type=float, default=10.0, help=OPERATION_TIMEOUT_HELP)
+    _add_json(replay_observe, jsonl=True)
+    replay_observe.set_defaults(func=command_replay)
+
+    replay_run = replay_operations.add_parser(
+        "run", help="run a read-only YAML workflow against captured evidence"
+    )
+    replay_run.add_argument("workflow", type=Path)
+    _add_json(replay_run)
+    replay_run.set_defaults(func=command_replay)
+
+    replay_mcp = replay_operations.add_parser(
+        "mcp", help="serve normal BLEA MCP tools from captured evidence"
+    )
+    replay_mcp.set_defaults(func=command_replay_mcp)
 
     read = subparsers.add_parser("read", help="read one GATT characteristic")
     read.add_argument("--device", required=True)

@@ -49,6 +49,11 @@ class DeviceUnavailableError(BleaError):
         super().__init__(message, EXIT_DEVICE_UNAVAILABLE, "device_unavailable", details)
 
 
+class ReplayMissError(BleaError):
+    def __init__(self, message: str, **details: Any) -> None:
+        super().__init__(message, EXIT_DEVICE_UNAVAILABLE, "replay_miss", details)
+
+
 class BleTimeoutError(BleaError):
     def __init__(self, message: str, **details: Any) -> None:
         super().__init__(message, EXIT_TIMEOUT, "timeout", details)

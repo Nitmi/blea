@@ -24,7 +24,9 @@ def test_portable_and_codex_manifests_reference_same_server() -> None:
     codex_mcp = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
 
     assert portable["name"] == codex["name"] == "blea"
-    assert portable["version"] == codex["version"] == __version__
+    assert portable["version"] == __version__
+    assert codex["version"].split("+", 1)[0] == __version__
+    assert "+codex." in codex["version"]
     assert portable_mcp["mcpServers"]["blea"]["command"] == "ble"
     assert codex_mcp["mcpServers"]["blea"] == {"command": "ble", "args": ["mcp"]}
 
@@ -52,6 +54,20 @@ def test_cli_exposes_product_surfaces() -> None:
     diff = parser.parse_args(["diff", "before.blea.jsonl", "after.blea.jsonl", "--fail-on-change"])
     assert diff.rssi_tolerance == 5.0
     assert diff.fail_on_change is True
+    replay = parser.parse_args(
+        [
+            "replay",
+            "capture.blea.jsonl",
+            "--speed",
+            "2",
+            "read",
+            "--characteristic",
+            "2a19",
+        ]
+    )
+    assert replay.replay_operation == "read"
+    assert replay.speed == 2.0
+    assert replay.device is None
     observe = parser.parse_args(["observe", "--device", "Sensor", "--characteristic", "2a19"])
     assert observe.characteristics == ["2a19"]
     exchange = parser.parse_args(
@@ -82,6 +98,7 @@ async def test_mcp_exposes_one_shot_and_stateful_tools() -> None:
         "ble_probe",
         "ble_capture",
         "ble_diff",
+        "ble_replay",
         "ble_observe",
         "ble_exchange",
         "ble_read",

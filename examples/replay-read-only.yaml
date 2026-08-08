@@ -1,0 +1,26 @@
+name: evidence-replay-smoke
+device: "id:redacted:device-1"
+timeout: 1
+
+steps:
+  - id: inspect
+    action: inspect
+    expect:
+      service_count_at_least: 1
+
+  - id: battery
+    action: read
+    characteristic: "00002a19-0000-1000-8000-00805f9b34fb"
+    requires: [inspect]
+    expect:
+      equals_hex: "64"
+
+  - id: notification
+    action: subscribe
+    characteristic: "00002a19-0000-1000-8000-00805f9b34fb"
+    duration: 0
+    requires: [inspect]
+    expect:
+      notification_count: 1
+      final_notification:
+        hex: "63"

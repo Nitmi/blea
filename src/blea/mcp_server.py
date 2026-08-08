@@ -18,6 +18,7 @@ from blea import __version__
 from blea.codec import parse_payload
 from blea.diff import DEFAULT_RSSI_TOLERANCE_DBM, diff_evidence
 from blea.errors import BleaError
+from blea.replay import replay_operation
 from blea.service import BleService, SessionManager
 
 DEFAULT_SESSION_IDLE_SECONDS = 120.0
@@ -36,6 +37,16 @@ def _session_idle_seconds() -> float | None:
 
 service = BleService()
 sessions = SessionManager(service, idle_timeout_seconds=_session_idle_seconds())
+
+
+def configure_backend(backend: Any) -> None:
+    """Configure a fresh MCP process before serving any requests."""
+
+    global service, sessions
+    if sessions.list_sessions()["count"]:
+        raise RuntimeError("cannot replace the MCP backend while sessions are open")
+    service = BleService(backend)
+    sessions = SessionManager(service, idle_timeout_seconds=_session_idle_seconds())
 
 
 async def _reap_idle_sessions(manager: SessionManager) -> None:
@@ -82,13 +93,24 @@ with warnings.catch_warnings():
 mcp._mcp_server.version = __version__
 
 
-async def _safe(call: Any) -> dict[str, Any]:
+def _annotate_backend(result: dict[str, Any]) -> dict[str, Any]:
+    metadata = getattr(service.backend, "metadata", None)
+    if not callable(metadata):
+        return result
+    if getattr(service.backend, "instant", False) and "duration_ms" in result:
+        result["duration_ms"] = 0
+    result.setdefault("replay", metadata())
+    return result
+
+
+async def _safe(call: Any, *, include_backend_context: bool = True) -> dict[str, Any]:
     try:
         # WinRT BLE awaits can switch ContextVar contexts on Windows. A child task keeps the
         # MCP SDK's request context intact so it can serialize and send the tool response.
-        return await asyncio.create_task(call)
+        result = await asyncio.create_task(call)
     except BleaError as exc:
-        return exc.to_dict()
+        result = exc.to_dict()
+    return _annotate_backend(result) if include_backend_context else result
 
 
 @mcp.tool()
@@ -205,7 +227,53 @@ async def ble_diff(
             strict_rssi=strict_rssi,
             allow_different_devices=allow_different_devices,
             fail_on_change=fail_on_change,
-        )
+        ),
+        include_backend_context=False,
+    )
+
+
+@mcp.tool()
+async def ble_replay(
+    evidence: str,
+    operation: str,
+    speed: float = 0.0,
+    device: str | None = None,
+    characteristic: str | None = None,
+    characteristics: list[str] | None = None,
+    workflow: str | None = None,
+    timeout: float = 10.0,
+    duration: float = 10.0,
+    max_reads: int = 32,
+    read_offset: int = 0,
+    include_profile: bool = False,
+    name_contains: str | None = None,
+    service_uuid: str | None = None,
+) -> dict[str, Any]:
+    """Replay scan/inspect/probe/read/subscribe/observe/run from evidence without BLE hardware.
+
+    speed=0 returns matching notifications immediately. Positive speed values preserve recorded
+    notification gaps at the requested multiplier. Replay is always read-only and never exposes a
+    write or exchange operation.
+    """
+
+    return await _safe(
+        replay_operation(
+            evidence,
+            operation,
+            speed=speed,
+            device=device,
+            characteristic=characteristic,
+            characteristics=tuple(characteristics) if characteristics else None,
+            workflow=workflow,
+            timeout=timeout,
+            duration=duration,
+            max_reads=max_reads,
+            read_offset=read_offset,
+            include_profile=include_profile,
+            name_contains=name_contains,
+            service_uuid=service_uuid,
+        ),
+        include_backend_context=False,
     )
 
 
@@ -274,7 +342,7 @@ async def ble_exchange(
     try:
         data = parse_payload(hex_value=hex_value, text_value=text_value, base64_value=base64_value)
     except BleaError as exc:
-        return exc.to_dict()
+        return _annotate_backend(exc.to_dict())
     return await _safe(
         service.exchange(
             device,
@@ -309,7 +377,7 @@ async def ble_write(
     try:
         data = parse_payload(hex_value=hex_value, text_value=text_value, base64_value=base64_value)
     except BleaError as exc:
-        return exc.to_dict()
+        return _annotate_backend(exc.to_dict())
     return await _safe(
         service.write(
             device,
@@ -390,7 +458,7 @@ async def ble_session_exchange(
     try:
         data = parse_payload(hex_value=hex_value, text_value=text_value, base64_value=base64_value)
     except BleaError as exc:
-        return exc.to_dict()
+        return _annotate_backend(exc.to_dict())
     return await _safe(
         sessions.exchange(
             session_id,
@@ -423,7 +491,7 @@ async def ble_session_write(
     try:
         data = parse_payload(hex_value=hex_value, text_value=text_value, base64_value=base64_value)
     except BleaError as exc:
-        return exc.to_dict()
+        return _annotate_backend(exc.to_dict())
     return await _safe(
         sessions.write(
             session_id,
@@ -448,7 +516,7 @@ async def ble_session_close(session_id: str) -> dict[str, Any]:
 async def ble_session_list() -> dict[str, Any]:
     """List open BLE sessions, their devices, idle time, and lease timeout."""
 
-    return sessions.list_sessions()
+    return _annotate_backend(sessions.list_sessions())
 
 
 @mcp.tool()
@@ -467,5 +535,7 @@ async def ble_session_close_all() -> dict[str, Any]:
     return await _safe(close_all())
 
 
-def run() -> None:
+def run(backend: Any | None = None) -> None:
+    if backend is not None:
+        configure_backend(backend)
     mcp.run(transport="stdio")
