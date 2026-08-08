@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
-from typing import Any, Protocol
+from collections.abc import Awaitable, Callable
+from typing import Any, Protocol, TypeVar
 
 from bleak import BleakClient, BleakScanner
 
@@ -16,6 +16,27 @@ from blea.models import (
     ServiceInfo,
     uuid_namespace,
 )
+
+T = TypeVar("T")
+
+
+async def _wait_for_operation(awaitable: Awaitable[T], *, timeout: float) -> T:
+    # asyncio.wait_for can lose an external cancellation on Python 3.10 when the
+    # wrapped operation completes in the same event-loop turn.
+    task = asyncio.ensure_future(awaitable)
+    try:
+        done, _ = await asyncio.wait((task,), timeout=timeout)
+    except BaseException:
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        raise
+
+    if task not in done:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        raise asyncio.TimeoutError
+    return task.result()
 
 
 def _trusted_uuid_description(uuid: str, description: str | None) -> str | None:
@@ -68,9 +89,25 @@ class BleakConnection:
         self._client = BleakClient(target, timeout=timeout)
         self._timeout = timeout
 
+    async def _start_notify(
+        self,
+        characteristic: str,
+        callback: Callable[[object, bytearray], None],
+    ) -> None:
+        operation = asyncio.ensure_future(self._client.start_notify(characteristic, callback))
+        try:
+            await _wait_for_operation(operation, timeout=self._timeout)
+        except asyncio.CancelledError:
+            if operation.done() and not operation.cancelled() and operation.exception() is None:
+                await self._stop_notify(characteristic)
+            raise
+
+    async def _stop_notify(self, characteristic: str) -> None:
+        await _wait_for_operation(self._client.stop_notify(characteristic), timeout=self._timeout)
+
     async def connect(self) -> None:
         try:
-            await asyncio.wait_for(self._client.connect(), timeout=self._timeout)
+            await _wait_for_operation(self._client.connect(), timeout=self._timeout)
             if not self._client.is_connected:
                 raise RuntimeError("backend returned without an active connection")
         except Exception as exc:
@@ -79,7 +116,7 @@ class BleakConnection:
     async def disconnect(self) -> None:
         try:
             if self._client.is_connected:
-                await asyncio.wait_for(self._client.disconnect(), timeout=self._timeout)
+                await _wait_for_operation(self._client.disconnect(), timeout=self._timeout)
         except Exception as exc:
             raise translate_backend_error(exc, operation="disconnect") from exc
 
@@ -132,7 +169,7 @@ class BleakConnection:
     async def read(self, characteristic: str) -> bytes:
         try:
             return bytes(
-                await asyncio.wait_for(
+                await _wait_for_operation(
                     self._client.read_gatt_char(characteristic), timeout=self._timeout
                 )
             )
@@ -141,7 +178,7 @@ class BleakConnection:
 
     async def write(self, characteristic: str, data: bytes, *, response: bool) -> None:
         try:
-            await asyncio.wait_for(
+            await _wait_for_operation(
                 self._client.write_gatt_char(characteristic, data, response=response),
                 timeout=self._timeout,
             )
@@ -157,17 +194,13 @@ class BleakConnection:
             notifications.append(Notification(sender_uuid, bytes(data)))
 
         try:
-            await asyncio.wait_for(
-                self._client.start_notify(characteristic, callback), timeout=self._timeout
-            )
+            await self._start_notify(characteristic, callback)
             notify_started = True
             try:
                 await asyncio.sleep(max(duration, 0.0))
             finally:
                 if notify_started:
-                    await asyncio.wait_for(
-                        self._client.stop_notify(characteristic), timeout=self._timeout
-                    )
+                    await self._stop_notify(characteristic)
             return notifications
         except Exception as exc:
             raise translate_backend_error(exc, operation="subscribe") from exc
@@ -189,9 +222,7 @@ class BleakConnection:
             notifications.append(Notification(sender_uuid, bytes(value)))
 
         try:
-            await asyncio.wait_for(
-                self._client.start_notify(notify_characteristic, callback), timeout=self._timeout
-            )
+            await self._start_notify(notify_characteristic, callback)
         except Exception as exc:
             raise translate_backend_error(exc, operation="subscribe") from exc
 
@@ -202,9 +233,7 @@ class BleakConnection:
             await asyncio.sleep(max(duration, 0.0))
         finally:
             try:
-                await asyncio.wait_for(
-                    self._client.stop_notify(notify_characteristic), timeout=self._timeout
-                )
+                await self._stop_notify(notify_characteristic)
             except Exception as exc:
                 cleanup_error = translate_backend_error(exc, operation="unsubscribe")
 
@@ -228,10 +257,7 @@ class BleakConnection:
         try:
             for characteristic in characteristics:
                 try:
-                    await asyncio.wait_for(
-                        self._client.start_notify(characteristic, callback_factory(characteristic)),
-                        timeout=self._timeout,
-                    )
+                    await self._start_notify(characteristic, callback_factory(characteristic))
                 except Exception as exc:
                     error = translate_backend_error(exc, operation="subscribe").to_dict()
                     subscriptions.append(
@@ -245,9 +271,7 @@ class BleakConnection:
         finally:
             for characteristic in started:
                 try:
-                    await asyncio.wait_for(
-                        self._client.stop_notify(characteristic), timeout=self._timeout
-                    )
+                    await self._stop_notify(characteristic)
                 except Exception as exc:
                     cleanup_errors.append(
                         translate_backend_error(exc, operation="unsubscribe").to_dict()
@@ -273,7 +297,7 @@ class BleakBackend:
         self, *, timeout: float, service_uuids: tuple[str, ...] = ()
     ) -> list[DiscoveredDevice]:
         try:
-            discovered = await asyncio.wait_for(
+            discovered = await _wait_for_operation(
                 BleakScanner.discover(
                     timeout=timeout,
                     return_adv=True,

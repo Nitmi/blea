@@ -66,6 +66,7 @@ class ExchangeClient:
         self.events: list[str] = []
         self.callback: object | None = None
         self.notify_characteristic = ""
+        self.wrote = asyncio.Event()
 
     async def start_notify(self, characteristic: str, callback: object) -> None:
         self.events.append("subscribe")
@@ -75,6 +76,7 @@ class ExchangeClient:
     async def write_gatt_char(self, characteristic: str, data: bytes, *, response: bool) -> None:
         del characteristic, data, response
         self.events.append("write")
+        self.wrote.set()
         assert callable(self.callback)
         self.callback(SimpleNamespace(uuid=self.notify_characteristic), bytearray(b"reply"))
 
@@ -199,8 +201,7 @@ async def test_cancelled_exchange_stops_notifications(
             read_back=False,
         )
     )
-    await asyncio.sleep(0)
-    await asyncio.sleep(0)
+    await asyncio.wait_for(connection._client.wrote.wait(), timeout=1)
 
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
