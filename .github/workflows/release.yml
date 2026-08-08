@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and verify distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: Verify tag matches project version
+        shell: bash
+        run: |
+          version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "$GITHUB_REF_NAME" = "v$version"
+      - run: uv sync --extra dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+      - run: uv build --clear --no-create-gitignore
+      - run: uvx --from twine twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/blea
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

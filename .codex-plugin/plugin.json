@@ -1,6 +1,6 @@
 {
   "name": "blea",
-  "version": "0.6.0+codex.20260808143833",
+  "version": "0.6.0+codex.20260808151841",
   "description": "Agent-first BLE diagnostics, evidence replay, and guarded automation.",
   "author": {
     "name": "Nitmi",
@@ -33,7 +33,6 @@
     "brandColor": "#2563EB",
     "defaultPrompt": [
       "Diagnose my Bluetooth adapter and scan for nearby BLE devices.",
-      "Safely observe notifications from this BLE device.",
       "Capture and compare two read-only BLE evidence packages.",
       "Replay a BLE evidence package without connecting to hardware."
     ]

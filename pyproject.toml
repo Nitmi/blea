@@ -14,7 +14,9 @@ authors = [
 ]
 keywords = ["bluetooth", "ble", "hardware", "cli", "mcp", "agent"]
 classifiers = [
+  "Development Status :: 3 - Alpha",
   "Environment :: Console",
+  "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
   "Operating System :: Microsoft :: Windows",
@@ -35,6 +37,7 @@ dependencies = [
 Homepage = "https://github.com/Nitmi/blea"
 Repository = "https://github.com/Nitmi/blea"
 Issues = "https://github.com/Nitmi/blea/issues"
+Changelog = "https://github.com/Nitmi/blea/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [

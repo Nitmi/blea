@@ -27,6 +27,7 @@ def test_portable_and_codex_manifests_reference_same_server() -> None:
     assert portable["version"] == __version__
     assert codex["version"].split("+", 1)[0] == __version__
     assert "+codex." in codex["version"]
+    assert 1 <= len(codex["interface"]["defaultPrompt"]) <= 3
     assert portable_mcp["mcpServers"]["blea"]["command"] == "ble"
     assert codex_mcp["mcpServers"]["blea"] == {"command": "ble", "args": ["mcp"]}
 

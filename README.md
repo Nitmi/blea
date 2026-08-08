@@ -16,17 +16,32 @@ authorization.
 BLEA requires Python 3.10 or newer. Bluetooth access is provided by the operating system through
 [Bleak](https://github.com/hbldh/bleak).
 
+After the `0.6.0` package is published to PyPI, install the command runtime with:
+
 ```shell
-uv tool install blea
+uv tool install "blea==0.6.0"
 ble --help
 ```
 
-From a checkout:
+From a checkout, install the command runtime directly from the working tree:
+
+```shell
+uv tool install --editable .
+ble --version
+```
+
+For repository development:
 
 ```shell
 uv sync --extra dev
 uv run ble --help
 ```
+
+The Python runtime and Agent Plugin are two related installation units: PyPI installs the `ble`
+executable, while an Agent Plugins 1.0 client loads this repository directory to discover
+`plugin.json`, `mcp.json`, and `skills/ble`. Install the runtime first so the plugin's local stdio
+MCP server can find `ble` on `PATH`. See [`docs/installation.md`](docs/installation.md) for source,
+plugin, update, permissions, and verification paths.
 
 ## CLI
 
@@ -208,6 +223,10 @@ The plugin configuration expects the `ble` executable to be installed on `PATH`.
 specification distributes Skill and MCP metadata; native Bluetooth runtime installation and OS
 permissions remain platform responsibilities.
 
+The repository is not yet published through a public Codex Git marketplace. Until that distribution
+entry exists and is verified, load the checkout as a local plugin directory; do not treat installing
+the Python package alone as installing the Agent Skill or MCP declaration.
+
 ## Platform status
 
 Windows 11 is hardware-verified with the ESP32-S3 BLEA test server, including discovery, GATT,
@@ -234,3 +253,7 @@ evidence fixture, providing an end-to-end CLI and Workflow smoke test with no ad
 
 Real adapter support is tracked separately from CI; CI success is not a native hardware support
 claim.
+
+Release history lives in [`CHANGELOG.md`](CHANGELOG.md). Maintainers should follow
+[`docs/releasing.md`](docs/releasing.md) for artifact, Trusted Publishing, Plugin, and
+post-publication gates.
