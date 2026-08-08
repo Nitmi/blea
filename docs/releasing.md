@@ -8,20 +8,27 @@ complete until the package is installed again from its public distribution path.
 1. Select a Semantic Version and align it in `pyproject.toml`, `src/blea/__init__.py`, `plugin.json`,
    and the base portions of both Codex Plugin manifests.
 2. Update `CHANGELOG.md`, README installation text, platform status, and known limitations.
-3. Synchronize the root Codex package into `plugins/blea`, then run the unit suite, Ruff checks,
-   Skill validator, both Plugin validators, lock check, and diff check.
+3. Synchronize the root Codex package into `plugins/blea`, verify there is no drift, then run the
+   unit suite, Ruff checks, Skill validator, both Plugin validators, lock check, and diff check:
+
+   ```shell
+   uv run python scripts/sync_codex_plugin.py
+   uv run python scripts/sync_codex_plugin.py --check
+   ```
+
 4. Build from a clean output directory and validate both artifacts:
 
    ```shell
    uv build --clear --no-create-gitignore
+   uv run python scripts/check_distribution.py dist
    uvx --from twine twine check dist/*
    ```
 
 5. Install the wheel in isolated Python 3.10, 3.11, 3.12, and 3.13 environments. In each, verify
    `ble --version` and the adapter-free replay Workflow.
-6. Verify the source archive contains the portable plugin package, Git marketplace, Codex
-   distribution, license, changelog, docs, and evidence fixture. Verify the wheel contains only the
-   runtime package and metadata.
+6. Confirm the distribution checker reports that the source archive contains the portable plugin
+   package, Git marketplace, Codex distribution, license, changelog, docs, and evidence fixture,
+   while the wheel contains only the runtime package and metadata.
 7. Confirm the worktree is clean and the release commit is present on the public default branch.
 
 ## Account-owned prerequisites

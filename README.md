@@ -255,14 +255,22 @@ privacy requirements, hardware acceptance procedure, and current evidence matrix
 
 ```shell
 uv sync --extra dev
+uv run python scripts/sync_codex_plugin.py --check
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest
+uv build --clear --no-create-gitignore
+uv run python scripts/check_distribution.py dist
 ```
 
 Unit tests use a fake BLE backend and do not require nearby hardware. CI runs on Windows, macOS,
 and Linux. Each CI job also runs `examples/replay-read-only.yaml` against the checked-in complete
 evidence fixture, providing an end-to-end CLI and Workflow smoke test with no adapter.
+
+The root `.codex-plugin`, `.mcp.json`, and `skills` paths are the Codex Plugin source of truth. After
+changing them, run `uv run python scripts/sync_codex_plugin.py`; CI uses `--check` to reject drift.
+The distribution checker also rejects missing marketplace files in the sdist and Plugin metadata in
+the Python wheel.
 
 Real adapter support is tracked separately from CI; CI success is not a native hardware support
 claim.

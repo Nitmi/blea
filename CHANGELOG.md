@@ -8,8 +8,9 @@ API, evidence formats, and Agent Plugin integration mature toward 1.0.
 ### Added
 
 - Public Codex Git marketplace metadata and an installable `plugins/blea` distribution mirror.
-- Repository checks that prevent the root Plugin, MCP declaration, and BLE Skill from drifting from
-  the marketplace package.
+- A deterministic Codex Plugin synchronization command with a read-only `--check` mode.
+- Cross-platform CI gates for Plugin mirror drift, the public marketplace contract, and sdist/wheel
+  content boundaries.
 
 ## [0.6.0] - 2026-08-09
 

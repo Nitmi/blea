@@ -22,10 +22,12 @@ jobs:
           version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
           test "$GITHUB_REF_NAME" = "v$version"
       - run: uv sync --extra dev
+      - run: uv run python scripts/sync_codex_plugin.py --check
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
       - run: uv build --clear --no-create-gitignore
+      - run: uv run python scripts/check_distribution.py dist
       - run: uvx --from twine twine check dist/*
       - uses: actions/upload-artifact@v4
         with:

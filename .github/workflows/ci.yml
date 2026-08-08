@@ -17,9 +17,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --extra dev
+      - run: uv run python scripts/sync_codex_plugin.py --check
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
       - run: >-
           uv run ble replay tests/fixtures/evidence/complete.blea.jsonl
           run examples/replay-read-only.yaml --json
+      - run: uv build --clear --no-create-gitignore
+      - run: uv run python scripts/check_distribution.py dist
