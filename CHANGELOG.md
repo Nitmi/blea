@@ -3,6 +3,14 @@
 All notable changes to BLEA are documented here. BLEA follows Semantic Versioning while its public
 API, evidence formats, and Agent Plugin integration mature toward 1.0.
 
+## [Unreleased]
+
+### Added
+
+- Public Codex Git marketplace metadata and an installable `plugins/blea` distribution mirror.
+- Repository checks that prevent the root Plugin, MCP declaration, and BLE Skill from drifting from
+  the marketplace package.
+
 ## [0.6.0] - 2026-08-09
 
 First public release.

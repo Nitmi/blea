@@ -32,6 +32,40 @@ def test_portable_and_codex_manifests_reference_same_server() -> None:
     assert codex_mcp["mcpServers"]["blea"] == {"command": "ble", "args": ["mcp"]}
 
 
+def test_codex_marketplace_packages_the_root_plugin_without_drift() -> None:
+    marketplace = json.loads(
+        (ROOT / ".agents" / "plugins" / "marketplace.json").read_text(encoding="utf-8")
+    )
+    entry = marketplace["plugins"][0]
+    packaged = ROOT / "plugins" / "blea"
+
+    assert marketplace["name"] == "blea"
+    assert marketplace["interface"]["displayName"] == "BLEA"
+    assert len(marketplace["plugins"]) == 1
+    assert entry == {
+        "name": "blea",
+        "source": {"source": "local", "path": "./plugins/blea"},
+        "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+        "category": "Developer Tools",
+    }
+    assert (packaged / ".codex-plugin" / "plugin.json").read_bytes() == (
+        ROOT / ".codex-plugin" / "plugin.json"
+    ).read_bytes()
+    assert (packaged / ".mcp.json").read_bytes() == (ROOT / ".mcp.json").read_bytes()
+
+    source_skills = {
+        path.relative_to(ROOT / "skills"): path.read_bytes()
+        for path in (ROOT / "skills").rglob("*")
+        if path.is_file()
+    }
+    packaged_skills = {
+        path.relative_to(packaged / "skills"): path.read_bytes()
+        for path in (packaged / "skills").rglob("*")
+        if path.is_file()
+    }
+    assert packaged_skills == source_skills
+
+
 def test_cli_exposes_product_surfaces() -> None:
     parser = build_parser()
     assert parser.parse_args(["scan", "--json"]).subcommand == "scan"

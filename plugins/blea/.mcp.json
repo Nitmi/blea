@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "blea": {
+      "command": "ble",
+      "args": ["mcp"]
+    }
+  }
+}

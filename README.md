@@ -23,6 +23,16 @@ uv tool install "blea==0.6.0"
 ble --help
 ```
 
+For Codex, install the public Git marketplace package after the runtime:
+
+```shell
+codex plugin marketplace add Nitmi/blea --ref main
+codex plugin add blea@blea
+```
+
+Start a new Agent task after installation. The marketplace package supplies the BLE Skill and MCP
+declaration; it does not install the Python runtime or operating-system Bluetooth permissions.
+
 From a checkout, install the command runtime directly from the working tree:
 
 ```shell
@@ -212,20 +222,23 @@ This repository is itself an [Agent Plugins 1.0](https://agent-plugins.org/) pac
 
 ```text
 blea/
-├── plugin.json                 portable plugin identity
-├── mcp.json                    portable local stdio MCP declaration
-├── skills/ble/SKILL.md         portable Agent Skill
-├── .codex-plugin/plugin.json   ChatGPT/Codex package metadata
-└── .mcp.json                   ChatGPT/Codex MCP declaration
+├── plugin.json                        portable plugin identity
+├── mcp.json                           portable local stdio MCP declaration
+├── skills/ble/SKILL.md                portable Agent Skill
+├── .codex-plugin/plugin.json          root ChatGPT/Codex package metadata
+├── .mcp.json                          root ChatGPT/Codex MCP declaration
+├── .agents/plugins/marketplace.json   public Git marketplace catalog
+└── plugins/blea/                      installable Codex distribution mirror
 ```
 
 The plugin configuration expects the `ble` executable to be installed on `PATH`. The portable
 specification distributes Skill and MCP metadata; native Bluetooth runtime installation and OS
 permissions remain platform responsibilities.
 
-The repository is not yet published through a public Codex Git marketplace. Until that distribution
-entry exists and is verified, load the checkout as a local plugin directory; do not treat installing
-the Python package alone as installing the Agent Skill or MCP declaration.
+The public Codex distribution is registered with `codex plugin marketplace add Nitmi/blea --ref
+main` and installed with `codex plugin add blea@blea`. Refresh it with `codex plugin marketplace
+upgrade blea`, reinstall the Plugin, and start a new Agent task. Do not treat installing the Python
+package alone as installing the Agent Skill or MCP declaration.
 
 ## Platform status
 

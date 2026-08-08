@@ -42,14 +42,31 @@ The repository root conforms to Agent Plugins 1.0 and contains:
 - `.codex-plugin/plugin.json` and `.mcp.json` for Codex-specific discovery;
 - `skills/ble/SKILL.md` and its referenced safety and Workflow guidance.
 
-Install the Python runtime first, then point an Agent Plugins 1.0 client at the checked-out repository
-directory. The stdio declaration runs `ble mcp`, so the client process must inherit a `PATH` that can
-resolve the `ble` executable.
+Install the Python runtime first. The stdio declaration runs `ble mcp`, so the Agent process must
+inherit a `PATH` that can resolve the `ble` executable.
 
-BLEA does not yet publish a Codex Git marketplace entry. Do not advertise a one-command Codex
-marketplace install until the GitHub repository, marketplace source, install, and fresh-task pickup
-have all been verified. Local development uses a local marketplace entry and should follow the
-Codex `plugin-creator` update flow rather than editing marketplace state by hand.
+### Codex Git marketplace
+
+Add the public Git marketplace and install BLEA:
+
+```shell
+codex plugin marketplace add Nitmi/blea --ref main
+codex plugin add blea@blea
+```
+
+The first command registers a versioned snapshot of the public repository. The second installs the
+Codex package from `plugins/blea`. Start a new Agent task after installation so Codex loads the BLE
+Skill and the local `ble mcp` server.
+
+The marketplace installs Plugin metadata only. It does not install Python, Bleak, the `ble` command,
+or operating-system Bluetooth permissions. Keep the PyPI runtime and Plugin versions aligned.
+
+For other Agent Plugins 1.0 clients, point the client at a checked-out repository root. The root
+Codex metadata, MCP declaration, and Skill are mirrored byte-for-byte into `plugins/blea`, with
+repository tests preventing drift.
+
+Local development uses a local marketplace entry and should follow the Codex `plugin-creator`
+cachebuster and reinstall flow rather than editing installed marketplace state by hand.
 
 ## Offline verification
 
@@ -71,9 +88,16 @@ uv tool upgrade blea
 ble --version
 ```
 
-Refresh or reinstall the Agent Plugin from its original source separately, then start a new Agent
-task so updated skills and MCP tools are loaded. Keep the base versions in `pyproject.toml`,
-`src/blea/__init__.py`, `plugin.json`, and `.codex-plugin/plugin.json` aligned.
+Refresh the public Git snapshot and reinstall the Agent Plugin separately:
+
+```shell
+codex plugin marketplace upgrade blea
+codex plugin add blea@blea
+```
+
+Then start a new Agent task so updated skills and MCP tools are loaded. Keep the base versions in
+`pyproject.toml`, `src/blea/__init__.py`, `plugin.json`, `.codex-plugin/plugin.json`, and
+`plugins/blea/.codex-plugin/plugin.json` aligned.
 
 ## Uninstall
 

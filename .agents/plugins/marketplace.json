@@ -1,0 +1,20 @@
+{
+  "name": "blea",
+  "interface": {
+    "displayName": "BLEA"
+  },
+  "plugins": [
+    {
+      "name": "blea",
+      "source": {
+        "source": "local",
+        "path": "./plugins/blea"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
