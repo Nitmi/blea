@@ -71,8 +71,7 @@ release requires a new version.
 9. Record the GitHub Release URL, PyPI URL, artifact SHA-256 values, CI run, Plugin install result,
    and hardware/replay smoke results in the project TODO.
 
-## First release status
+## First release
 
-Version 0.6.0 is the selected first public release candidate. Local wheel and source builds can be
-accepted before the GitHub repository and PyPI publisher exist, but the release remains unpublished
-until all post-publication checks above pass.
+Version 0.6.0 is the first public release. A release is complete only after the GitHub workflow,
+PyPI installation, public replay, and documented post-publication checks above pass.

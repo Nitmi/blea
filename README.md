@@ -16,7 +16,7 @@ authorization.
 BLEA requires Python 3.10 or newer. Bluetooth access is provided by the operating system through
 [Bleak](https://github.com/hbldh/bleak).
 
-After the `0.6.0` package is published to PyPI, install the command runtime with:
+Install the command runtime from PyPI with:
 
 ```shell
 uv tool install "blea==0.6.0"

@@ -3,9 +3,9 @@
 All notable changes to BLEA are documented here. BLEA follows Semantic Versioning while its public
 API, evidence formats, and Agent Plugin integration mature toward 1.0.
 
-## [0.6.0] - 2026-08-08
+## [0.6.0] - 2026-08-09
 
-First public release candidate.
+First public release.
 
 ### Added
 
@@ -27,6 +27,8 @@ First public release candidate.
   authorization.
 - Capture and replay never pair, write, or change device configuration; replay rejects every write
   and exchange path.
+- BLE operation timeouts preserve external task cancellation on Python 3.10 and clean up active
+  notification subscriptions.
 
 ### Platform status
 
