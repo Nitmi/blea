@@ -1,7 +1,7 @@
 {
   "name": "blea",
-  "version": "0.4.0",
-  "description": "Agent-first Bluetooth Low Energy diagnostics and guarded automation.",
+  "version": "0.5.0",
+  "description": "Agent-first BLE diagnostics, evidence comparison, and guarded automation.",
   "author": {
     "name": "Nitmi",
     "url": "https://github.com/Nitmi"
@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "BLEA",
     "shortDescription": "Diagnose and automate Bluetooth Low Energy devices.",
-    "longDescription": "BLEA gives agents a safe local BLE workflow: diagnose the adapter, select devices deterministically, inspect GATT services, read and observe notifications, save portable read-only evidence, and perform explicitly authorized writes.",
+    "longDescription": "BLEA gives agents a safe local BLE workflow: diagnose the adapter, select devices deterministically, inspect GATT services, capture portable read-only evidence, compare captures offline, and perform explicitly authorized writes.",
     "developerName": "Nitmi",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Read", "Write"],
@@ -23,9 +23,8 @@
     "brandColor": "#2563EB",
     "defaultPrompt": [
       "Diagnose my Bluetooth adapter and scan for nearby BLE devices.",
-      "Inspect this BLE device and explain its readable characteristics.",
       "Safely observe notifications from this BLE device.",
-      "Capture a read-only evidence package from this BLE device."
+      "Capture and compare two read-only BLE evidence packages."
     ]
   }
 }

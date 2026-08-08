@@ -16,6 +16,7 @@ with warnings.catch_warnings():
 
 from blea import __version__
 from blea.codec import parse_payload
+from blea.diff import DEFAULT_RSSI_TOLERANCE_DBM, diff_evidence
 from blea.errors import BleaError
 from blea.service import BleService, SessionManager
 
@@ -175,6 +176,35 @@ async def ble_capture(
             observe_duration=observe_duration,
             timeout=timeout,
             redact_identifiers=redact_identifiers,
+        )
+    )
+
+
+@mcp.tool()
+async def ble_diff(
+    before: str,
+    after: str,
+    rssi_tolerance: float = DEFAULT_RSSI_TOLERANCE_DBM,
+    strict_rssi: bool = False,
+    allow_different_devices: bool = False,
+    fail_on_change: bool = False,
+) -> dict[str, Any]:
+    """Compare two validated BLEA evidence files without accessing Bluetooth hardware.
+
+    Transient capture metadata and notification timestamps are ignored. RSSI uses a 5 dBm
+    tolerance by default; strict_rssi compares exact values. Device identifiers must match unless
+    allow_different_devices is explicitly enabled.
+    """
+
+    return await _safe(
+        asyncio.to_thread(
+            diff_evidence,
+            before,
+            after,
+            rssi_tolerance=rssi_tolerance,
+            strict_rssi=strict_rssi,
+            allow_different_devices=allow_different_devices,
+            fail_on_change=fail_on_change,
         )
     )
 

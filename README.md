@@ -7,8 +7,9 @@ deterministic `ble` CLI, a local stateful MCP server, a guarded workflow runner,
 Agent Plugin package.
 
 The project is designed for the BLE work agents repeatedly need: checking OS Bluetooth access,
-finding the right nearby device, discovering GATT services, preserving raw byte evidence, reading
-and subscribing before changing state, and making writes only after explicit authorization.
+finding the right nearby device, discovering GATT services, preserving and comparing raw byte
+evidence, reading and subscribing before changing state, and making writes only after explicit
+authorization.
 
 ## Install
 
@@ -38,6 +39,7 @@ ble probe --device "id:AA:BB:CC:DD:EE:FF" --max-reads 16 --read-offset 16 --json
 ble read --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a19 --json
 ble subscribe --device "id:AA:BB:CC:DD:EE:FF" --characteristic 2a37 --duration 15 --jsonl
 ble observe --device "id:AA:BB:CC:DD:EE:FF" --duration 10 --jsonl
+ble diff before.blea.jsonl after.blea.jsonl --json
 ble exchange \
   --device "id:AA:BB:CC:DD:EE:FF" \
   --write-characteristic 12345678-1234-1234-1234-1234567890ab \
@@ -88,6 +90,22 @@ JSONL file is the authoritative artifact; the command's JSON result is a compact
 Evidence Format v1 contract and deterministic validator live in
 [`docs/evidence-format-v1.md`](docs/evidence-format-v1.md).
 
+Compare two complete evidence packages without a Bluetooth adapter or device:
+
+```shell
+ble diff before.blea.jsonl after.blea.jsonl --json
+ble diff before.blea.jsonl after.blea.jsonl --fail-on-change --json
+```
+
+`diff` validates both Evidence Format v1 inputs, projects them into stable BLE semantics, and emits
+sorted JSON Pointer changes. It ignores capture IDs, timestamps, runtime metadata, sampling
+duration, and RSSI movement within 5 dBm by default. Use `--strict-rssi` for exact RSSI comparison.
+Device identifiers must match unless an intentional cross-device comparison uses
+`--allow-different-devices`. Binary payloads are atomic changes, so one changed value does not
+produce separate Hex, Base64, and UTF-8 noise. A normal difference exits successfully;
+`--fail-on-change` returns code `3` after printing the complete result for CI. The contract lives in
+[`docs/diff-format-v1.md`](docs/diff-format-v1.md).
+
 ## Guarded writes
 
 A write requires both `--allow-write` and an exact confirmation of the resolved identifier:
@@ -132,7 +150,8 @@ Start the local stdio server directly:
 ble mcp
 ```
 
-The MCP surface includes one-shot tools and stateful session tools. Sessions let an agent connect
+The MCP surface includes one-shot tools, the offline `ble_diff` evidence comparator, and stateful
+session tools. Sessions let an agent connect
 once, inspect, read, observe, subscribe, perform a guarded request/notification exchange or write,
 and then disconnect. `ble_exchange` and `ble_session_exchange` atomically subscribe before writing.
 `ble_session_list` exposes active leases and `ble_session_close_all` provides explicit recovery.

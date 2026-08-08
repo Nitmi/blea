@@ -10,6 +10,7 @@ from typing import Any
 
 from blea import __version__
 from blea.codec import parse_payload
+from blea.diff import DEFAULT_RSSI_TOLERANCE_DBM, diff_evidence
 from blea.errors import EXIT_CONFIG_ERROR, EXIT_DEVICE_UNAVAILABLE, BleaError
 from blea.service import BleService
 from blea.workflow import run_workflow
@@ -86,6 +87,16 @@ def _print_human(payload: dict[str, Any]) -> None:
         observation = payload.get("observation") or {}
         print(f"Notifications: {observation.get('notification_count', 0)}")
         print(f"Status: {payload['status']}")
+    elif operation == "diff":
+        summary = payload["summary"]
+        print(f"Diff: {payload['status']}")
+        print(
+            f"Added: {summary['added']}, removed: {summary['removed']}, "
+            f"changed: {summary['changed']}, unchanged: {summary['unchanged']}"
+        )
+        for category, marker in (("added", "+"), ("removed", "-"), ("changed", "~")):
+            for item in payload["changes"][category]:
+                print(f"  {marker} {item['path']}")
     elif operation in {"read", "session_read"}:
         print(payload["data"]["hex"])
     elif operation in {"subscribe", "session_subscribe"}:
@@ -199,6 +210,20 @@ async def command_capture(args: argparse.Namespace) -> int:
             observe_duration=args.observe_duration,
             timeout=args.timeout,
             redact_identifiers=args.redact_identifiers,
+        ),
+        args,
+    )
+
+
+def command_diff(args: argparse.Namespace) -> int:
+    return _emit(
+        diff_evidence(
+            args.before,
+            args.after,
+            rssi_tolerance=args.rssi_tolerance,
+            strict_rssi=args.strict_rssi,
+            allow_different_devices=args.allow_different_devices,
+            fail_on_change=args.fail_on_change,
         ),
         args,
     )
@@ -348,6 +373,35 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_json(capture)
     capture.set_defaults(func=command_capture)
+
+    diff = subparsers.add_parser("diff", help="compare two BLEA evidence files offline")
+    diff.add_argument("before", type=Path, help="baseline .blea.jsonl evidence file")
+    diff.add_argument("after", type=Path, help="comparison .blea.jsonl evidence file")
+    rssi = diff.add_mutually_exclusive_group()
+    rssi.add_argument(
+        "--rssi-tolerance",
+        type=float,
+        default=DEFAULT_RSSI_TOLERANCE_DBM,
+        metavar="DBM",
+        help="ignore RSSI deltas at or below DBM (default: 5)",
+    )
+    rssi.add_argument(
+        "--strict-rssi",
+        action="store_true",
+        help="compare RSSI exactly instead of applying a tolerance",
+    )
+    diff.add_argument(
+        "--allow-different-devices",
+        action="store_true",
+        help="allow and report an intentional device identifier mismatch",
+    )
+    diff.add_argument(
+        "--fail-on-change",
+        action="store_true",
+        help="return exit code 3 when a valid comparison finds differences",
+    )
+    _add_json(diff)
+    diff.set_defaults(func=command_diff)
 
     read = subparsers.add_parser("read", help="read one GATT characteristic")
     read.add_argument("--device", required=True)

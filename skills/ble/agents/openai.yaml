@@ -1,6 +1,6 @@
 interface:
   display_name: "BLEA"
-  short_description: "Diagnose and automate Bluetooth Low Energy devices"
-  default_prompt: "Use $ble to safely inspect a nearby BLE device and save read-only evidence."
+  short_description: "Diagnose, capture, and compare Bluetooth Low Energy"
+  default_prompt: "Use $ble to safely inspect a BLE device, capture read-only evidence, and compare changes offline."
 policy:
   allow_implicit_invocation: true
