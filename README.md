@@ -208,6 +208,17 @@ The plugin configuration expects the `ble` executable to be installed on `PATH`.
 specification distributes Skill and MCP metadata; native Bluetooth runtime installation and OS
 permissions remain platform responsibilities.
 
+## Platform status
+
+Windows 11 is hardware-verified with the ESP32-S3 BLEA test server, including discovery, GATT,
+notifications, guarded exchange, capture, and replay. macOS and Linux currently pass the unit suite
+and replay the same real-device evidence in CI, but their native Bluetooth adapter paths have not
+been tested on physical hosts. Treat those two platforms as `CI + replay verified; native BLE
+hardware unverified` until a published acceptance report says otherwise.
+
+See [`docs/platform-acceptance.md`](docs/platform-acceptance.md) for the exact support tiers,
+privacy requirements, hardware acceptance procedure, and current evidence matrix.
+
 ## Development
 
 ```shell
@@ -221,6 +232,5 @@ Unit tests use a fake BLE backend and do not require nearby hardware. CI runs on
 and Linux. Each CI job also runs `examples/replay-read-only.yaml` against the checked-in complete
 evidence fixture, providing an end-to-end CLI and Workflow smoke test with no adapter.
 
-Real adapter support is tracked separately from CI. See
-[`docs/platform-acceptance.md`](docs/platform-acceptance.md) for the Windows/macOS/Linux hardware
-matrix, privacy gate, command sequence, and report template.
+Real adapter support is tracked separately from CI; CI success is not a native hardware support
+claim.

@@ -9,12 +9,29 @@ or native Bluetooth backend work.
 | Platform | Native backend | Published identifier form | Read-only hardware | Guarded exchange | Redacted capture |
 | --- | --- | --- | --- | --- | --- |
 | Windows 11 | WinRT | Address-like; never publish raw | Passed | Passed | `tests/fixtures/platform/windows-esp32-s3.blea.jsonl` |
-| macOS | CoreBluetooth | Host-local UUID; never treat as a MAC | Pending | Pending | Pending |
-| Linux | BlueZ D-Bus | Address-like; never publish raw | Pending | Pending | Pending |
+| macOS | CoreBluetooth | Host-local UUID; never treat as a MAC | Not hardware-tested | Not hardware-tested | Not available |
+| Linux | BlueZ D-Bus | Address-like; never publish raw | Not hardware-tested | Not hardware-tested | Not available |
 
 The matrix records tested configurations, not blanket support for every adapter or OS build. BLEA's
 current environment pins Bleak 1.1.1. Record the resolved versions in every report instead of
 assuming the dependency or native stack matches another platform.
+
+## Release support policy
+
+Windows 11 is BLEA's hardware-verified primary platform for the first public release. The checked-in
+Windows ESP32-S3 evidence covers the native adapter path, guarded exchange, capture, and offline
+replay.
+
+macOS and Linux run the complete unit suite and the same captured-evidence replay Workflow in CI,
+but neither platform has completed a real-adapter acceptance run. They must be described as
+`CI + replay verified; native BLE hardware unverified`, not as hardware-supported platforms. A
+green CI job proves package and evidence portability only.
+
+The missing macOS and Linux hardware runs do not block the first public release as long as this
+limitation remains visible in the README and release notes. Native hardware acceptance on those
+platforms is a post-release validation track and can be completed on external or contributor-owned
+hosts using the contract below. Passing it upgrades that platform's status; it does not rewrite the
+meaning of prior CI results.
 
 ## Upstream platform facts
 
