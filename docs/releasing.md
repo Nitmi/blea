@@ -6,7 +6,7 @@ complete until the package is installed again from its public distribution path.
 ## Release gates
 
 1. Select a Semantic Version and align it in `pyproject.toml`, `src/blea/__init__.py`, `plugin.json`,
-   and the base portions of both Codex Plugin manifests.
+   `server.json`, and the base portions of both Codex Plugin manifests.
 2. Update `CHANGELOG.md`, README installation text, platform status, and known limitations. Public
    marketplace install commands must use the release's immutable `v<version>` tag, never `main`.
 3. Synchronize the root Codex package into `plugins/blea`, verify there is no drift, then run the
@@ -16,6 +16,7 @@ complete until the package is installed again from its public distribution path.
    uv run python scripts/sync_codex_plugin.py
    uv run python scripts/sync_codex_plugin.py --check
    uv run python scripts/check_agent_package.py
+   uv run python scripts/check_mcp_registry.py
    ```
 
    The repository-local checker is the CI gate. Also run the current official Skill validator and
@@ -47,6 +48,8 @@ Before the first release:
 - Protect `v*` tags and require the normal CI checks before publishing a GitHub Release.
 - Keep the public Codex Git marketplace source separate from the portable repository-root plugin.
   Do not imply that PyPI installs the Agent Plugin.
+- Authenticate the official `mcp-publisher` with the GitHub account that owns the
+  `io.github.nitmi/blea` namespace before the first MCP Registry publication.
 
 These operations change public account state and require the repository owner's explicit action or
 authorization. Do not substitute a long-lived PyPI API token.
@@ -80,6 +83,9 @@ release requires a new version.
    write-safety policy.
 6. Publish the GitHub Release and approve the protected `pypi` environment deployment.
 7. Verify the PyPI project, file hashes, Trusted Publisher identity, and publish attestations.
+   Confirm the rendered PyPI description contains the hidden
+   `mcp-name: io.github.nitmi/blea` ownership marker, then publish the version-aligned
+   `server.json` with the official `mcp-publisher` and verify the Registry response.
 8. In a fresh environment, run:
 
    ```shell
@@ -100,8 +106,8 @@ release requires a new version.
    If `blea` is already configured at an older ref, remove that marketplace first and add it again
    at the new tag. `marketplace upgrade` only refreshes the configured ref; it does not select a new
    release.
-10. Record the GitHub Release URL, PyPI URL, artifact SHA-256 values, CI run, Plugin install result,
-   and hardware/replay smoke results in the project TODO.
+10. Record the GitHub Release URL, PyPI URL, MCP Registry entry, artifact SHA-256 values, CI run,
+   Plugin install result, and hardware/replay smoke results in the project TODO.
 
 ## First release
 

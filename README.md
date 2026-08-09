@@ -1,7 +1,10 @@
 # BLEA
 
+<!-- mcp-name: io.github.nitmi/blea -->
+
 [![Agent Plugins 1.0.0](https://img.shields.io/badge/Agent_Plugins-1.0.0-0F766E)](https://agent-plugins.org/)
 [![Agent Skill](https://img.shields.io/badge/Agent-Skill-2563EB)](skills/ble/SKILL.md)
+[![skills.sh](https://skills.sh/b/nitmi/blea)](https://www.skills.sh/nitmi/blea/ble)
 [![CLI](https://img.shields.io/badge/Interface-CLI-374151)](#cli)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-C2410C)](#mcp-and-agent-plugin)
 [![PyPI](https://img.shields.io/pypi/v/blea)](https://pypi.org/project/blea/)
@@ -47,6 +50,17 @@ the runtime:
 codex plugin marketplace add Nitmi/blea --ref v0.6.1
 codex plugin add blea@blea
 ```
+
+To install only the portable Agent Skill with the Skills CLI:
+
+```shell
+npx skills add Nitmi/blea --skill ble
+```
+
+The Skill teaches the workflow and safety policy; it does not install the Python runtime. Install
+`blea` from PyPI as shown above before asking an agent to access live Bluetooth hardware or start
+the local MCP server. The indexed Skill page is
+[`skills.sh/nitmi/blea/ble`](https://www.skills.sh/nitmi/blea/ble).
 
 Start a new Agent task after installation. The marketplace package supplies the BLE Skill and MCP
 declaration; it does not install the Python runtime or operating-system Bluetooth permissions. See
@@ -254,6 +268,10 @@ blea/
 The plugin configuration expects the `ble` executable to be installed on `PATH`. The portable
 specification distributes Skill and MCP metadata; native Bluetooth runtime installation and OS
 permissions remain platform responsibilities.
+
+The repository also carries [`server.json`](server.json), the official MCP Registry package
+metadata for the PyPI distribution. It declares a local stdio server and the `mcp` package
+argument; it does not advertise a hosted or remote BLE service.
 
 The public Codex distribution is registered at the immutable Git ref shown in the install section
 and installed with `codex plugin add blea@blea`. A pinned ref does not advance to another release

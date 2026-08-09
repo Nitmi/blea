@@ -23,7 +23,9 @@ REQUIRED_SDIST_FILES = frozenset(
         "plugins/blea/skills/ble/SKILL.md",
         "scripts/check_agent_package.py",
         "scripts/check_distribution.py",
+        "scripts/check_mcp_registry.py",
         "scripts/sync_codex_plugin.py",
+        "server.json",
         "skills/ble/SKILL.md",
         "tests/fixtures/evidence/complete.blea.jsonl",
     }
@@ -40,7 +42,7 @@ EXPECTED_MARKETPLACE = {
         }
     ],
 }
-FORBIDDEN_WHEEL_FILES = frozenset({".mcp.json", "mcp.json", "plugin.json"})
+FORBIDDEN_WHEEL_FILES = frozenset({".mcp.json", "mcp.json", "plugin.json", "server.json"})
 FORBIDDEN_WHEEL_DIRECTORIES = frozenset({".agents", ".codex-plugin", "plugins", "skills"})
 
 

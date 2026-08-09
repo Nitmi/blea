@@ -8,8 +8,9 @@
   `plugins/blea` by hand.
 - Keep `plugin.json`, `mcp.json`, `.codex-plugin/plugin.json`, and `.mcp.json` aligned.
 - Before committing, run the Plugin sync check, `uv run python scripts/check_agent_package.py`,
-  Ruff checks, unit tests, and `uv run python scripts/check_distribution.py dist` against a clean
-  build. Before a release, also run the current official Skill validator and both Plugin validators.
+  `uv run python scripts/check_mcp_registry.py`, Ruff checks, unit tests, and
+  `uv run python scripts/check_distribution.py dist` against a clean build. Before a release, also
+  run the current official Skill validator and both Plugin validators.
 - Keep workflow Actions on Node.js 24-compatible releases. Preserve the pinned setup-uv revision
   unless its cache behavior is intentionally reviewed at the same time.
 - Commit cohesive, verified checkpoints without including unrelated files.
