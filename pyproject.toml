@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "blea"
-version = "0.6.3"
+version = "0.6.4"
 description = "Universal Agent Plugin for safe BLE diagnostics and automation via Skill, CLI, and MCP"
 readme = "README.md"
 requires-python = ">=3.10"

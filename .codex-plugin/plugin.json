@@ -1,6 +1,6 @@
 {
   "name": "blea",
-  "version": "0.6.3+codex.20260809164534",
+  "version": "0.6.4+codex.20260809171148",
   "description": "Universal Agent Plugin for safe BLE diagnostics and automation via Skill, CLI, and MCP.",
   "author": {
     "name": "Nitmi",

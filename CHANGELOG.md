@@ -5,10 +5,30 @@ API, evidence formats, and Agent Plugin integration mature toward 1.0.
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-08-10
+
+Plugin presentation patch. BLE operations, write guards, Evidence Format v1, and platform support
+claims are unchanged.
+
 ### Added
 
 - Add a Bluetooth-first BLEA icon for Codex plugin cards and composer surfaces, with synchronized
   512 px and 128 px transparent PNG assets in the public marketplace package.
+
+### Changed
+
+- Treat plugin image assets as a managed part of the Codex distribution mirror and validate their
+  paths, dimensions, PNG format, source-archive inclusion, and byte-for-byte mirror integrity.
+
+### Safety and platform status
+
+- No live BLE behavior, protocol operation, write authorization, evidence contract, or platform
+  support claim changes in this release.
+
+### Upgrade notes
+
+- Install `blea==0.6.4` and the Codex marketplace at `--ref v0.6.4`, then start a new Agent task so
+  the updated plugin presentation is loaded.
 
 ## [0.6.3] - 2026-08-09
 

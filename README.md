@@ -35,11 +35,11 @@ tool hidden inside an unrelated CLI product.
 BLEA requires Python 3.10 or newer. Bluetooth access is provided by the operating system through
 [Bleak](https://github.com/hbldh/bleak).
 
-The version-aligned `0.6.3` commands below are available once the matching GitHub and PyPI release
+The version-aligned `0.6.4` commands below are available once the matching GitHub and PyPI release
 is published:
 
 ```shell
-uv tool install "blea==0.6.3"
+uv tool install "blea==0.6.4"
 ble --help
 ```
 
@@ -47,7 +47,7 @@ For Codex, install the public Git marketplace package from the matching immutabl
 the runtime:
 
 ```shell
-codex plugin marketplace add Nitmi/blea --ref v0.6.3
+codex plugin marketplace add Nitmi/blea --ref v0.6.4
 codex plugin add blea@blea
 ```
 

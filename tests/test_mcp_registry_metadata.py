@@ -13,7 +13,7 @@ def _write_fixture(root: Path) -> None:
         """
 [project]
 name = "blea"
-version = "0.6.3"
+version = "0.6.4"
 
 [project.scripts]
 blea = "blea.cli:main"
@@ -35,12 +35,12 @@ blea = "blea.cli:main"
             "source": "github",
             "id": "1327917598",
         },
-        "version": "0.6.3",
+        "version": "0.6.4",
         "packages": [
             {
                 "registryType": "pypi",
                 "identifier": "blea",
-                "version": "0.6.3",
+                "version": "0.6.4",
                 "transport": {"type": "stdio"},
                 "packageArguments": [{"type": "positional", "value": "mcp"}],
             }
@@ -51,7 +51,7 @@ blea = "blea.cli:main"
     (root / "Dockerfile").write_text(
         "FROM python:3.13-slim@sha256:"
         "9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6\n"
-        "ARG BLEA_VERSION=0.6.3\n"
+        "ARG BLEA_VERSION=0.6.4\n"
         "WORKDIR /opt/blea\n"
         "COPY . .\n"
         "RUN python -m pip install --no-cache-dir .\n"

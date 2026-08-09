@@ -19,7 +19,7 @@ def test_repository_openai_skill_bundle_is_complete_and_deterministic(tmp_path: 
     first_bytes = Path(first["path"]).read_bytes()
     second = build_openai_skill_bundle(ROOT, tmp_path)
 
-    assert first["version"] == "0.6.3"
+    assert first["version"] == "0.6.4"
     assert first["file_count"] == len(BUNDLE_FILES)
     assert second["sha256"] == first["sha256"]
     assert Path(second["path"]).read_bytes() == first_bytes
@@ -37,7 +37,7 @@ def test_repository_openai_skill_bundle_is_complete_and_deterministic(tmp_path: 
 
 
 def test_openai_skill_bundle_rejects_missing_required_file(tmp_path: Path) -> None:
-    (tmp_path / "plugin.json").write_text('{"version":"0.6.3"}\n', encoding="utf-8")
+    (tmp_path / "plugin.json").write_text('{"version":"0.6.4"}\n', encoding="utf-8")
     skill_root = tmp_path / "skills" / "ble"
     skill_root.mkdir(parents=True)
     (skill_root / "SKILL.md").write_text("# BLEA\n", encoding="utf-8")
@@ -47,7 +47,7 @@ def test_openai_skill_bundle_rejects_missing_required_file(tmp_path: Path) -> No
 
 
 def test_openai_skill_bundle_normalizes_checkout_line_endings(tmp_path: Path) -> None:
-    (tmp_path / "plugin.json").write_text('{"version":"0.6.3"}\n', encoding="utf-8")
+    (tmp_path / "plugin.json").write_text('{"version":"0.6.4"}\n', encoding="utf-8")
     skill_root = tmp_path / "skills" / "ble"
     for relative in BUNDLE_FILES:
         path = skill_root / relative

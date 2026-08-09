@@ -17,10 +17,10 @@ def test_public_marketplace_install_examples_use_immutable_refs() -> None:
     readme_refs = _marketplace_refs(ROOT / "README.md")
     installation_refs = _marketplace_refs(ROOT / "docs" / "installation.md")
 
-    assert "v0.6.3" in readme_refs
+    assert "v0.6.4" in readme_refs
     assert VERIFIED_060_MARKETPLACE_REF not in readme_refs
     assert VERIFIED_060_MARKETPLACE_REF in installation_refs
-    assert "v0.6.3" in installation_refs
+    assert "v0.6.4" in installation_refs
     assert "v0.6.0" not in readme_refs + installation_refs
     assert all(IMMUTABLE_REF.fullmatch(ref) for ref in readme_refs + installation_refs)
 
