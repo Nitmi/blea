@@ -36,7 +36,7 @@ immutable wheel from PyPI before claiming that the published package works.
 
 ## Agent Plugin
 
-The repository root conforms to Agent Plugins 1.0 and contains:
+The repository root conforms to Agent Plugins 1.0.0 and contains:
 
 - `plugin.json` and `mcp.json` for portable clients;
 - `.codex-plugin/plugin.json` and `.mcp.json` for Codex-specific discovery;
@@ -75,7 +75,7 @@ and `plugins/blea/.codex-plugin/plugin.json`.
 The marketplace installs Plugin metadata only. It does not install Python, Bleak, the `ble` command,
 or operating-system Bluetooth permissions. Keep the PyPI runtime and Plugin versions aligned.
 
-For other Agent Plugins 1.0 clients, point the client at a checked-out repository root. The root
+For other Agent Plugins 1.0.0 clients, point the client at a checked-out repository root. The root
 Codex metadata, MCP declaration, and Skill are mirrored byte-for-byte into `plugins/blea`, with
 repository tests preventing drift.
 

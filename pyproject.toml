@@ -5,14 +5,23 @@ build-backend = "hatchling.build"
 [project]
 name = "blea"
 version = "0.6.1"
-description = "Agent-first BLE diagnostics, evidence replay, and guarded automation"
+description = "Universal Agent Plugin for safe BLE diagnostics and automation via Skill, CLI, and MCP"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
   { name = "Nitmi" },
 ]
-keywords = ["bluetooth", "ble", "hardware", "cli", "mcp", "agent"]
+keywords = [
+  "bluetooth",
+  "ble",
+  "hardware",
+  "agent",
+  "agent-plugin",
+  "agent-skill",
+  "cli",
+  "mcp",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",

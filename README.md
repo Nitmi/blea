@@ -1,15 +1,31 @@
 # BLEA
 
+[![Agent Plugins 1.0.0](https://img.shields.io/badge/Agent_Plugins-1.0.0-0F766E)](https://agent-plugins.org/)
+[![Agent Skill](https://img.shields.io/badge/Agent-Skill-2563EB)](skills/ble/SKILL.md)
+[![CLI](https://img.shields.io/badge/Interface-CLI-374151)](#cli)
+[![MCP](https://img.shields.io/badge/Protocol-MCP-C2410C)](#mcp-and-agent-plugin)
+[![PyPI](https://img.shields.io/pypi/v/blea)](https://pypi.org/project/blea/)
 [![CI](https://github.com/Nitmi/blea/actions/workflows/ci.yml/badge.svg)](https://github.com/Nitmi/blea/actions/workflows/ci.yml)
 
-BLEA — **Bluetooth Low Energy Automation** — is an agent-first BLE toolkit. It combines a
-deterministic `ble` CLI, a local stateful MCP server, a guarded workflow runner, offline evidence
-replay, and a portable Agent Plugin package.
+BLEA — **Bluetooth Low Energy Automation** — is a universal Agent Plugin for safe, deterministic
+BLE work. It gives AI agents a portable Skill, a machine-readable CLI, a local MCP server, guarded
+automation, and offline evidence capture, diff, and replay.
 
 The project is designed for the BLE work agents repeatedly need: checking OS Bluetooth access,
 finding the right nearby device, discovering GATT services, preserving and comparing raw byte
 evidence, reading and subscribing before changing state, and making writes only after explicit
 authorization.
+
+| Surface | Role |
+| --- | --- |
+| Agent Plugin 1.0.0 | Packages the portable identity, Skill, and MCP declaration. |
+| Agent Skill | Teaches agents the BLE workflow, safety boundaries, and recovery rules. |
+| CLI | Emits deterministic JSON/JSONL for scripts, terminals, and any agent with shell access. |
+| MCP | Exposes the same runtime as local, structured tools with managed BLE sessions. |
+
+The `ble` executable is the shared runtime. Regular subcommands use the CLI surface; `ble mcp`
+starts the stdio MCP server. The MCP protocol is therefore a first-class interface, not a second
+tool hidden inside an unrelated CLI product.
 
 ## Install
 
@@ -52,7 +68,7 @@ uv run ble --help
 ```
 
 The Python runtime and Agent Plugin are two related installation units: PyPI installs the `ble`
-executable, while an Agent Plugins 1.0 client loads this repository directory to discover
+executable, while an Agent Plugins 1.0.0 client loads this repository directory to discover
 `plugin.json`, `mcp.json`, and `skills/ble`. Install the runtime first so the plugin's local stdio
 MCP server can find `ble` on `PATH`. See [`docs/installation.md`](docs/installation.md) for source,
 plugin, update, permissions, and verification paths.
@@ -222,7 +238,7 @@ Every replay-backed BLE operation result identifies the evidence and carries
 `replay.read_only=true`. Even if a client invokes an existing write or exchange tool with
 live-device authorization fields, the ReplayBackend rejects it.
 
-This repository is itself an [Agent Plugins 1.0](https://agent-plugins.org/) package:
+This repository is itself an [Agent Plugins 1.0.0](https://agent-plugins.org/) package:
 
 ```text
 blea/
