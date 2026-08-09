@@ -30,6 +30,7 @@ jobs:
       - run: uv run pytest
       - run: uv build --clear --no-create-gitignore
       - run: uv run python scripts/check_distribution.py dist
+      - run: docker build --tag blea-mcp:release .
       - run: uvx --from twine twine check dist/*
       - uses: actions/upload-artifact@v7
         with:

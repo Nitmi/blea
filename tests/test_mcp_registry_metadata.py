@@ -48,6 +48,23 @@ blea = "blea.cli:main"
         "websiteUrl": "https://github.com/Nitmi/blea",
     }
     (root / "server.json").write_text(json.dumps(server), encoding="utf-8")
+    (root / "glama.json").write_text(
+        json.dumps(
+            {
+                "$schema": "https://glama.ai/mcp/schemas/server.json",
+                "maintainers": ["Nitmi"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (root / "Dockerfile").write_text(
+        "FROM python:3.13-slim@sha256:"
+        "9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6\n"
+        "ARG BLEA_VERSION=0.6.1\n"
+        'RUN python -m pip install --no-cache-dir "blea==${BLEA_VERSION}"\n'
+        'ENTRYPOINT ["ble", "mcp"]\n',
+        encoding="utf-8",
+    )
 
 
 def test_repository_mcp_registry_metadata_is_aligned() -> None:
@@ -71,9 +88,14 @@ def test_mcp_registry_metadata_rejects_release_drift(tmp_path: Path) -> None:
     server["packages"][0]["packageArguments"] = []
     server_path.write_text(json.dumps(server), encoding="utf-8")
     (tmp_path / "README.md").write_text("# BLEA\n", encoding="utf-8")
+    (tmp_path / "Dockerfile").write_text(
+        "FROM python:3.13-slim\nARG BLEA_VERSION=0.6.0\n",
+        encoding="utf-8",
+    )
 
     errors = validate_mcp_registry(tmp_path)
 
     assert "server.json version must match project.version" in errors
     assert "server.json must declare exactly the version-aligned PyPI stdio package" in errors
     assert "README.md is missing the exact MCP Registry ownership marker" in errors
+    assert any("Dockerfile is missing version-aligned line" in error for error in errors)

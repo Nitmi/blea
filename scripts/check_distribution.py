@@ -10,12 +10,15 @@ REQUIRED_SDIST_FILES = frozenset(
     {
         ".agents/plugins/marketplace.json",
         ".codex-plugin/plugin.json",
+        ".dockerignore",
         ".mcp.json",
         "CHANGELOG.md",
+        "Dockerfile",
         "LICENSE",
         "README.md",
         "docs/installation.md",
         "docs/releasing.md",
+        "glama.json",
         "mcp.json",
         "plugin.json",
         "plugins/blea/.codex-plugin/plugin.json",
@@ -42,7 +45,9 @@ EXPECTED_MARKETPLACE = {
         }
     ],
 }
-FORBIDDEN_WHEEL_FILES = frozenset({".mcp.json", "mcp.json", "plugin.json", "server.json"})
+FORBIDDEN_WHEEL_FILES = frozenset(
+    {".mcp.json", "Dockerfile", "glama.json", "mcp.json", "plugin.json", "server.json"}
+)
 FORBIDDEN_WHEEL_DIRECTORIES = frozenset({".agents", ".codex-plugin", "plugins", "skills"})
 
 

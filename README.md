@@ -273,6 +273,11 @@ The repository also carries [`server.json`](server.json), the official MCP Regis
 metadata for the PyPI distribution. It declares a local stdio server and the `mcp` package
 argument; it does not advertise a hosted or remote BLE service.
 
+The root [`Dockerfile`](Dockerfile) is a registry sandbox for MCP protocol introspection and
+adapter-free tools. It intentionally installs the version-aligned PyPI release and starts
+`ble mcp`. It does not claim that a container can access the host's Bluetooth adapter; use the
+native host installation above for live BLE work.
+
 The public Codex distribution is registered at the immutable Git ref shown in the install section
 and installed with `codex plugin add blea@blea`. A pinned ref does not advance to another release
 when a marketplace snapshot is refreshed. To change releases, remove the configured marketplace,

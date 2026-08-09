@@ -30,6 +30,10 @@ complete until the package is installed again from its public distribution path.
    uvx --from twine twine check dist/*
    ```
 
+   The Linux CI and release jobs also build the root registry sandbox image. Its
+   `BLEA_VERSION` argument must match the project version; it is for MCP introspection and does not
+   replace native host installation for physical adapters.
+
 5. Install the wheel in isolated Python 3.10, 3.11, 3.12, and 3.13 environments. In each, verify
    `ble --version` and the adapter-free replay Workflow.
 6. Confirm the distribution checker reports that the source archive contains the portable plugin

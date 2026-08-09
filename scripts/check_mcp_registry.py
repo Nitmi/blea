@@ -15,19 +15,25 @@ MCP_NAME = "io.github.nitmi/blea"
 REPOSITORY_URL = "https://github.com/Nitmi/blea"
 REPOSITORY_ID = "1327917598"
 PYPI_PACKAGE = "blea"
+GLAMA_SCHEMA = "https://glama.ai/mcp/schemas/server.json"
+PYTHON_IMAGE = (
+    "python:3.13-slim@sha256:9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6"
+)
 
 
-def _load_json(path: Path, errors: list[str]) -> dict[str, Any] | None:
+def _load_json(
+    path: Path, errors: list[str], *, label: str = "server.json"
+) -> dict[str, Any] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        errors.append("missing server.json")
+        errors.append(f"missing {label}")
         return None
     except (OSError, UnicodeError, json.JSONDecodeError):
-        errors.append("server.json must contain valid JSON")
+        errors.append(f"{label} must contain valid JSON")
         return None
     if not isinstance(payload, dict):
-        errors.append("server.json must contain a JSON object")
+        errors.append(f"{label} must contain a JSON object")
         return None
     return payload
 
@@ -117,6 +123,26 @@ def validate_mcp_registry(root: Path) -> list[str]:
         marker = f"<!-- mcp-name: {MCP_NAME} -->"
         if marker not in readme:
             errors.append("README.md is missing the exact MCP Registry ownership marker")
+
+    glama = _load_json(root / "glama.json", errors, label="glama.json")
+    if glama != {"$schema": GLAMA_SCHEMA, "maintainers": ["Nitmi"]}:
+        errors.append("glama.json must identify Nitmi with the official Glama schema")
+
+    try:
+        dockerfile = (root / "Dockerfile").read_text(encoding="utf-8").replace("\r\n", "\n")
+    except (FileNotFoundError, OSError, UnicodeError):
+        errors.append("Dockerfile must be readable")
+    else:
+        expected_lines = {
+            f"FROM {PYTHON_IMAGE}",
+            f"ARG BLEA_VERSION={version}",
+            'RUN python -m pip install --no-cache-dir "blea==${BLEA_VERSION}"',
+            'ENTRYPOINT ["ble", "mcp"]',
+        }
+        missing_lines = sorted(expected_lines - set(dockerfile.splitlines()))
+        errors.extend(
+            f"Dockerfile is missing version-aligned line: {line}" for line in missing_lines
+        )
     return sorted(set(errors))
 
 
