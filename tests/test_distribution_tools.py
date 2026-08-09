@@ -63,17 +63,21 @@ def test_sync_plugin_repairs_managed_drift_and_preserves_unmanaged_files(
     _write(tmp_path / ".codex-plugin" / "plugin.json", b'{"name":"blea"}\n')
     _write(tmp_path / ".codex-plugin" / "notes.json", b'{"source":true}\n')
     _write(tmp_path / ".mcp.json", b'{"mcpServers":{}}\n')
+    _write(tmp_path / "assets" / "icon.bin", b"source icon\n")
     _write(tmp_path / "skills" / "ble" / "SKILL.md", b"source skill\n")
 
     packaged = tmp_path / "plugins" / "blea"
     _write(packaged / ".codex-plugin" / "plugin.json", b'{"name":"old"}\n')
     _write(packaged / "skills" / "ble" / "stale.txt", b"stale\n")
-    _write(packaged / "assets" / "icon.bin", b"keep\n")
+    _write(packaged / "assets" / "stale.bin", b"stale icon\n")
+    _write(packaged / "local-note.txt", b"keep\n")
 
     before = check_plugin_sync(tmp_path)
     assert before["ok"] is False
     assert ".codex-plugin/plugin.json" in before["changed"]
     assert ".mcp.json" in before["missing"]
+    assert "assets/icon.bin" in before["missing"]
+    assert "assets/stale.bin" in before["extra"]
     assert "skills/ble/stale.txt" in before["extra"]
 
     result = sync_plugin(tmp_path)
@@ -83,7 +87,9 @@ def test_sync_plugin_repairs_managed_drift_and_preserves_unmanaged_files(
     assert result["exit_code"] == 0
     assert check_plugin_sync(tmp_path)["ok"] is True
     assert not (packaged / "skills" / "ble" / "stale.txt").exists()
-    assert (packaged / "assets" / "icon.bin").read_bytes() == b"keep\n"
+    assert not (packaged / "assets" / "stale.bin").exists()
+    assert (packaged / "assets" / "icon.bin").read_bytes() == b"source icon\n"
+    assert (packaged / "local-note.txt").read_bytes() == b"keep\n"
     assert (packaged / ".codex-plugin" / "notes.json").read_bytes() == b'{"source":true}\n'
 
 

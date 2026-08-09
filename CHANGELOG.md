@@ -5,6 +5,11 @@ API, evidence formats, and Agent Plugin integration mature toward 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Add a Bluetooth-first BLEA icon for Codex plugin cards and composer surfaces, with synchronized
+  512 px and 128 px transparent PNG assets in the public marketplace package.
+
 ## [0.6.3] - 2026-08-09
 
 Registry namespace correction patch. BLE operations, write guards, and Evidence Format v1 are

@@ -1,6 +1,6 @@
 {
   "name": "blea",
-  "version": "0.6.3+codex.20260809232125",
+  "version": "0.6.3+codex.20260809164534",
   "description": "Universal Agent Plugin for safe BLE diagnostics and automation via Skill, CLI, and MCP.",
   "author": {
     "name": "Nitmi",
@@ -34,6 +34,8 @@
     ],
     "websiteURL": "https://github.com/Nitmi/blea",
     "brandColor": "#2563EB",
+    "composerIcon": "./assets/blea-icon-128.png",
+    "logo": "./assets/blea-icon-512.png",
     "defaultPrompt": [
       "Diagnose my Bluetooth adapter and scan for nearby BLE devices.",
       "Capture and compare two read-only BLE evidence packages.",

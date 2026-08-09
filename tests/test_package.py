@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import struct
 from contextvars import ContextVar
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -18,6 +19,13 @@ from tests.fakes import FakeBackend
 ROOT = Path(__file__).parents[1]
 
 
+def _png_size(path: Path) -> tuple[int, int]:
+    content = path.read_bytes()
+    assert content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert content[12:16] == b"IHDR"
+    return struct.unpack(">II", content[16:24])
+
+
 def test_portable_and_codex_manifests_reference_same_server() -> None:
     portable = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
     portable_mcp = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))
@@ -30,6 +38,10 @@ def test_portable_and_codex_manifests_reference_same_server() -> None:
     assert codex["version"].split("+", 1)[0] == __version__
     assert "+codex." in codex["version"]
     assert 1 <= len(codex["interface"]["defaultPrompt"]) <= 3
+    assert codex["interface"]["composerIcon"] == "./assets/blea-icon-128.png"
+    assert codex["interface"]["logo"] == "./assets/blea-icon-512.png"
+    assert _png_size(ROOT / "assets" / "blea-icon-128.png") == (128, 128)
+    assert _png_size(ROOT / "assets" / "blea-icon-512.png") == (512, 512)
     assert portable_mcp["mcpServers"]["blea"]["command"] == "ble"
     assert codex_mcp["mcpServers"]["blea"] == {"command": "ble", "args": ["mcp"]}
 
@@ -66,6 +78,18 @@ def test_codex_marketplace_packages_the_root_plugin_without_drift() -> None:
         if path.is_file()
     }
     assert packaged_skills == source_skills
+
+    source_assets = {
+        path.relative_to(ROOT / "assets"): path.read_bytes()
+        for path in (ROOT / "assets").rglob("*")
+        if path.is_file()
+    }
+    packaged_assets = {
+        path.relative_to(packaged / "assets"): path.read_bytes()
+        for path in (packaged / "assets").rglob("*")
+        if path.is_file()
+    }
+    assert packaged_assets == source_assets
 
 
 def test_cli_exposes_product_surfaces() -> None:

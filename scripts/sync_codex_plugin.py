@@ -8,7 +8,7 @@ from pathlib import Path
 
 PLUGIN_RELATIVE = Path("plugins") / "blea"
 MANAGED_FILES = (Path(".mcp.json"),)
-MANAGED_TREES = (Path(".codex-plugin"), Path("skills"))
+MANAGED_TREES = (Path(".codex-plugin"), Path("assets"), Path("skills"))
 
 
 class PluginSyncError(RuntimeError):

@@ -12,6 +12,8 @@ REQUIRED_SDIST_FILES = frozenset(
         ".codex-plugin/plugin.json",
         ".dockerignore",
         ".mcp.json",
+        "assets/blea-icon-128.png",
+        "assets/blea-icon-512.png",
         "CHANGELOG.md",
         "Dockerfile",
         "LICENSE",
@@ -23,6 +25,8 @@ REQUIRED_SDIST_FILES = frozenset(
         "plugin.json",
         "plugins/blea/.codex-plugin/plugin.json",
         "plugins/blea/.mcp.json",
+        "plugins/blea/assets/blea-icon-128.png",
+        "plugins/blea/assets/blea-icon-512.png",
         "plugins/blea/skills/ble/SKILL.md",
         "scripts/check_agent_package.py",
         "scripts/build_openai_skill_bundle.py",
@@ -134,6 +138,19 @@ def _check_sdist(files: dict[str, bytes]) -> list[str]:
     }
     if source_skills != packaged_skills:
         errors.append("sdist root Skills differ from the packaged Plugin Skills")
+
+    source_assets = {
+        name.removeprefix("assets/"): content
+        for name, content in files.items()
+        if name.startswith("assets/")
+    }
+    packaged_assets = {
+        name.removeprefix("plugins/blea/assets/"): content
+        for name, content in files.items()
+        if name.startswith("plugins/blea/assets/")
+    }
+    if source_assets != packaged_assets:
+        errors.append("sdist root Plugin assets differ from the packaged Plugin assets")
     return errors
 
 
