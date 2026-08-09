@@ -16,10 +16,10 @@ replay verified but native BLE hardware unverified. See [platform-acceptance.md]
 
 ## Python runtime
 
-After version 0.6.1 is available on PyPI:
+After version 0.6.2 is available on PyPI:
 
 ```shell
-uv tool install "blea==0.6.1"
+uv tool install "blea==0.6.2"
 ble --version
 ble doctor --scan-timeout 2 --json
 ```
@@ -47,17 +47,18 @@ inherit a `PATH` that can resolve the `ble` executable.
 
 ### Codex Git marketplace
 
-Starting with `v0.6.1`, use the same version for PyPI and the Git marketplace:
+Starting with `v0.6.1`, use the same version for PyPI and the Git marketplace. For the current
+release:
 
 ```shell
-uv tool install "blea==0.6.1"
-codex plugin marketplace add Nitmi/blea --ref v0.6.1
+uv tool install "blea==0.6.2"
+codex plugin marketplace add Nitmi/blea --ref v0.6.2
 codex plugin add blea@blea
 ```
 
-The first command registers an immutable snapshot of the public repository. The second installs the
-Python runtime, and the remaining commands install the Codex package from `plugins/blea`. Start a
-new Agent task after installation so Codex loads the BLE Skill and the local `ble mcp` server.
+The first command installs the Python runtime. The remaining commands register an immutable
+snapshot of the public repository and install the Codex package from `plugins/blea`. Start a new
+Agent task after installation so Codex loads the BLE Skill and the local `ble mcp` server.
 
 The original `v0.6.0` tag predates the Git marketplace package. Users who intentionally remain on
 the `0.6.0` runtime must use its verified post-release bridge snapshot instead of that tag:
@@ -103,12 +104,12 @@ ble --version
 ```
 
 An immutable marketplace ref can be refreshed, but it cannot advance to another release. To move
-to `v0.6.1` after that release is published, replace the configured marketplace source and reinstall
+to `v0.6.2` after that release is published, replace the configured marketplace source and reinstall
 the Agent Plugin separately:
 
 ```shell
 codex plugin marketplace remove blea
-codex plugin marketplace add Nitmi/blea --ref v0.6.1
+codex plugin marketplace add Nitmi/blea --ref v0.6.2
 codex plugin add blea@blea
 ```
 

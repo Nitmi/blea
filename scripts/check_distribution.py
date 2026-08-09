@@ -17,14 +17,15 @@ REQUIRED_SDIST_FILES = frozenset(
         "LICENSE",
         "README.md",
         "docs/installation.md",
+        "docs/openai-plugin-submission.md",
         "docs/releasing.md",
-        "glama.json",
         "mcp.json",
         "plugin.json",
         "plugins/blea/.codex-plugin/plugin.json",
         "plugins/blea/.mcp.json",
         "plugins/blea/skills/ble/SKILL.md",
         "scripts/check_agent_package.py",
+        "scripts/build_openai_skill_bundle.py",
         "scripts/check_distribution.py",
         "scripts/check_mcp_registry.py",
         "scripts/sync_codex_plugin.py",
@@ -46,7 +47,7 @@ EXPECTED_MARKETPLACE = {
     ],
 }
 FORBIDDEN_WHEEL_FILES = frozenset(
-    {".mcp.json", "Dockerfile", "glama.json", "mcp.json", "plugin.json", "server.json"}
+    {".mcp.json", "Dockerfile", "mcp.json", "plugin.json", "server.json"}
 )
 FORBIDDEN_WHEEL_DIRECTORIES = frozenset({".agents", ".codex-plugin", "plugins", "skills"})
 

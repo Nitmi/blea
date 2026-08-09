@@ -35,11 +35,11 @@ tool hidden inside an unrelated CLI product.
 BLEA requires Python 3.10 or newer. Bluetooth access is provided by the operating system through
 [Bleak](https://github.com/hbldh/bleak).
 
-The version-aligned `0.6.1` commands below are available once the matching GitHub and PyPI release
+The version-aligned `0.6.2` commands below are available once the matching GitHub and PyPI release
 is published:
 
 ```shell
-uv tool install "blea==0.6.1"
+uv tool install "blea==0.6.2"
 ble --help
 ```
 
@@ -47,7 +47,7 @@ For Codex, install the public Git marketplace package from the matching immutabl
 the runtime:
 
 ```shell
-codex plugin marketplace add Nitmi/blea --ref v0.6.1
+codex plugin marketplace add Nitmi/blea --ref v0.6.2
 codex plugin add blea@blea
 ```
 
@@ -271,12 +271,19 @@ permissions remain platform responsibilities.
 
 The repository also carries [`server.json`](server.json), the official MCP Registry package
 metadata for the PyPI distribution. It declares a local stdio server and the `mcp` package
-argument; it does not advertise a hosted or remote BLE service.
+argument; it does not advertise a hosted or remote BLE service. Releases publish this metadata to
+the [official MCP Registry](https://registry.modelcontextprotocol.io/) with short-lived GitHub OIDC
+credentials after the matching PyPI version succeeds.
 
 The root [`Dockerfile`](Dockerfile) is a registry sandbox for MCP protocol introspection and
-adapter-free tools. It intentionally installs the version-aligned PyPI release and starts
-`ble mcp`. It does not claim that a container can access the host's Bluetooth adapter; use the
-native host installation above for live BLE work.
+adapter-free tools. It builds the version-aligned release checkout and starts `ble mcp`, which lets
+release-candidate CI run before that version exists on PyPI. It does not claim that a container can
+access the host's Bluetooth adapter; use the native host installation above for live BLE work.
+
+The OpenAI Plugins Directory submission uses the portable Skill only. BLEA's MCP server stays local
+because live BLE requires the user's native host and adapter; it is not represented as a public
+remote MCP endpoint. Submission copy, limitations, starter prompts, and review cases are recorded
+in [`docs/openai-plugin-submission.md`](docs/openai-plugin-submission.md).
 
 The public Codex distribution is registered at the immutable Git ref shown in the install section
 and installed with `codex plugin add blea@blea`. A pinned ref does not advance to another release

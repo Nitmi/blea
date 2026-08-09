@@ -8,6 +8,21 @@ description: Use BLEA to diagnose and automate local Bluetooth Low Energy device
 Use BLEA for local BLE work. Prefer BLEA MCP tools when available; otherwise run the equivalent
 `ble` CLI command with JSON output.
 
+## Environment boundary
+
+First determine whether the current Agent host has BLEA MCP tools or the `ble` runtime and native
+Bluetooth access. A hosted Agent cannot access the Bluetooth adapter on the user's computer merely
+because this Skill is installed. In that environment, analyze uploaded `.blea.jsonl` evidence,
+explain or prepare commands for a local host, and clearly label them as not executed. Do not claim a
+scan, connection, read, notification, or write occurred without the corresponding structured
+result.
+
+When uploaded evidence is available but the BLEA runtime is not, parse the JSONL as structured JSON
+records, require a final complete summary before treating it as a complete capture, and report only
+the recorded advertisement, profile, read, notification, error, and cleanup evidence. Do not turn
+missing records into successful observations. Live operations require a local Agent host, the BLEA
+Python runtime, operating-system Bluetooth permission, and a supported adapter.
+
 ## Diagnostic sequence
 
 1. Run `ble_doctor` or `ble doctor --json` when adapter availability is unknown.

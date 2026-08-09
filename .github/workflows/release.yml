@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+env:
+  MCP_PUBLISHER_VERSION: "1.8.1"
+  MCP_PUBLISHER_LINUX_AMD64_SHA256: "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc"
+
 jobs:
   build:
     name: Build and verify distributions
@@ -30,12 +34,18 @@ jobs:
       - run: uv run pytest
       - run: uv build --clear --no-create-gitignore
       - run: uv run python scripts/check_distribution.py dist
+      - run: uv run python scripts/build_openai_skill_bundle.py --output-directory openai-dist
       - run: docker build --tag blea-mcp:release .
       - run: uvx --from twine twine check dist/*
       - uses: actions/upload-artifact@v7
         with:
           name: python-package-distributions
           path: dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openai-skill-bundle
+          path: openai-dist/*.zip
           if-no-files-found: error
 
   publish:
@@ -53,3 +63,46 @@ jobs:
           name: python-package-distributions
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  registry:
+    name: Publish to the official MCP Registry
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned MCP publisher
+        shell: bash
+        run: |
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          curl --fail --location --silent --show-error \
+            --output "$archive" \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/${archive}"
+          echo "${MCP_PUBLISHER_LINUX_AMD64_SHA256}  ${archive}" | sha256sum --check --strict
+          tar --extract --gzip --file "$archive"
+          chmod +x mcp-publisher
+          ./mcp-publisher --version
+          ./mcp-publisher validate
+      - name: Wait for the published PyPI ownership marker
+        shell: bash
+        run: |
+          version="$(python -c 'import json; print(json.load(open("server.json"))["version"])')"
+          for attempt in {1..18}; do
+            if curl --fail --silent --show-error "https://pypi.org/pypi/blea/${version}/json" \
+              | python -c 'import json, sys; assert "<!-- mcp-name: io.github.nitmi/blea -->" in json.load(sys.stdin)["info"]["description"]'
+            then
+              exit 0
+            fi
+            if [ "$attempt" -eq 18 ]; then
+              echo "PyPI did not expose the MCP ownership marker for blea ${version}" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+      - name: Publish server metadata with GitHub OIDC
+        shell: bash
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

@@ -28,6 +28,7 @@ jobs:
           run examples/replay-read-only.yaml --json
       - run: uv build --clear --no-create-gitignore
       - run: uv run python scripts/check_distribution.py dist
+      - run: uv run python scripts/build_openai_skill_bundle.py --output-directory openai-dist
       - name: Build MCP registry sandbox
         if: runner.os == 'Linux' && matrix.python-version == '3.13'
         run: docker build --tag blea-mcp:ci .

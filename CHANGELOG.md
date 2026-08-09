@@ -5,6 +5,40 @@ API, evidence formats, and Agent Plugin integration mature toward 1.0.
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-08-09
+
+Registry and discovery release. BLE operations, write guards, and Evidence Format v1 are unchanged.
+
+### Added
+
+- Official MCP Registry publication metadata and a release job that publishes with GitHub OIDC only
+  after the matching PyPI package succeeds.
+- A deterministic OpenAI skills-only submission bundle, public listing copy, starter prompts, and
+  five positive plus three negative review cases.
+- Public agent discovery metadata for Agent Plugins 1.0.0, Skill, CLI, MCP, and skills.sh surfaces.
+
+### Changed
+
+- The registry sandbox now installs the release checkout, removing the build dependency on a PyPI
+  version that cannot exist before the release workflow runs.
+- Skill documentation links use an immutable public release, so uploaded bundles do not depend on a
+  repository checkout layout.
+- Glama-specific package metadata is no longer required; official MCP Registry publication is the
+  authoritative MCP directory path.
+
+### Safety and platform status
+
+- No live BLE behavior or write authorization rule changes in this release.
+- The OpenAI listing is skills-only because BLEA's MCP transport is a local stdio process, not a
+  hosted service. Hosted environments must not claim access to a user's local Bluetooth adapter.
+- Windows 11 remains hardware verified; macOS and Linux remain CI and replay verified with native
+  Bluetooth hardware paths unverified.
+
+### Upgrade notes
+
+- Install `blea==0.6.2` and the Codex marketplace at `--ref v0.6.2`, then start a new Agent task.
+- Official MCP Registry publication occurs automatically after PyPI in the release workflow.
+
 ## [0.6.1] - 2026-08-09
 
 Distribution hardening patch. BLE operations, safety gates, and Evidence Format v1 are unchanged.

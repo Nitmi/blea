@@ -6,7 +6,7 @@ __pycache__/
 .coverage
 htmlcov/
 dist/
+openai-dist/
 build/
 *.egg-info/
 logs/
-

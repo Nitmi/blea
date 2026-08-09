@@ -13,7 +13,7 @@ def _write_fixture(root: Path) -> None:
         """
 [project]
 name = "blea"
-version = "0.6.1"
+version = "0.6.2"
 
 [project.scripts]
 blea = "blea.cli:main"
@@ -35,12 +35,12 @@ blea = "blea.cli:main"
             "source": "github",
             "id": "1327917598",
         },
-        "version": "0.6.1",
+        "version": "0.6.2",
         "packages": [
             {
                 "registryType": "pypi",
                 "identifier": "blea",
-                "version": "0.6.1",
+                "version": "0.6.2",
                 "transport": {"type": "stdio"},
                 "packageArguments": [{"type": "positional", "value": "mcp"}],
             }
@@ -48,20 +48,15 @@ blea = "blea.cli:main"
         "websiteUrl": "https://github.com/Nitmi/blea",
     }
     (root / "server.json").write_text(json.dumps(server), encoding="utf-8")
-    (root / "glama.json").write_text(
-        json.dumps(
-            {
-                "$schema": "https://glama.ai/mcp/schemas/server.json",
-                "maintainers": ["Nitmi"],
-            }
-        ),
-        encoding="utf-8",
-    )
     (root / "Dockerfile").write_text(
         "FROM python:3.13-slim@sha256:"
         "9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6\n"
-        "ARG BLEA_VERSION=0.6.1\n"
-        'RUN python -m pip install --no-cache-dir "blea==${BLEA_VERSION}"\n'
+        "ARG BLEA_VERSION=0.6.2\n"
+        "WORKDIR /opt/blea\n"
+        "COPY . .\n"
+        "RUN python -m pip install --no-cache-dir .\n"
+        'LABEL org.opencontainers.image.version="${BLEA_VERSION}"\n'
+        'LABEL io.modelcontextprotocol.server.name="io.github.nitmi/blea"\n'
         'ENTRYPOINT ["ble", "mcp"]\n',
         encoding="utf-8",
     )
@@ -84,12 +79,12 @@ def test_mcp_registry_metadata_rejects_release_drift(tmp_path: Path) -> None:
     _write_fixture(tmp_path)
     server_path = tmp_path / "server.json"
     server = json.loads(server_path.read_text(encoding="utf-8"))
-    server["version"] = "0.6.0"
+    server["version"] = "0.6.1"
     server["packages"][0]["packageArguments"] = []
     server_path.write_text(json.dumps(server), encoding="utf-8")
     (tmp_path / "README.md").write_text("# BLEA\n", encoding="utf-8")
     (tmp_path / "Dockerfile").write_text(
-        "FROM python:3.13-slim\nARG BLEA_VERSION=0.6.0\n",
+        "FROM python:3.13-slim\nARG BLEA_VERSION=0.6.1\n",
         encoding="utf-8",
     )
 

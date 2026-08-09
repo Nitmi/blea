@@ -15,7 +15,6 @@ MCP_NAME = "io.github.nitmi/blea"
 REPOSITORY_URL = "https://github.com/Nitmi/blea"
 REPOSITORY_ID = "1327917598"
 PYPI_PACKAGE = "blea"
-GLAMA_SCHEMA = "https://glama.ai/mcp/schemas/server.json"
 PYTHON_IMAGE = (
     "python:3.13-slim@sha256:9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6"
 )
@@ -124,10 +123,6 @@ def validate_mcp_registry(root: Path) -> list[str]:
         if marker not in readme:
             errors.append("README.md is missing the exact MCP Registry ownership marker")
 
-    glama = _load_json(root / "glama.json", errors, label="glama.json")
-    if glama != {"$schema": GLAMA_SCHEMA, "maintainers": ["Nitmi"]}:
-        errors.append("glama.json must identify Nitmi with the official Glama schema")
-
     try:
         dockerfile = (root / "Dockerfile").read_text(encoding="utf-8").replace("\r\n", "\n")
     except (FileNotFoundError, OSError, UnicodeError):
@@ -136,13 +131,19 @@ def validate_mcp_registry(root: Path) -> list[str]:
         expected_lines = {
             f"FROM {PYTHON_IMAGE}",
             f"ARG BLEA_VERSION={version}",
-            'RUN python -m pip install --no-cache-dir "blea==${BLEA_VERSION}"',
+            "WORKDIR /opt/blea",
+            "COPY . .",
+            "RUN python -m pip install --no-cache-dir .",
+            'LABEL org.opencontainers.image.version="${BLEA_VERSION}"',
+            f'LABEL io.modelcontextprotocol.server.name="{MCP_NAME}"',
             'ENTRYPOINT ["ble", "mcp"]',
         }
         missing_lines = sorted(expected_lines - set(dockerfile.splitlines()))
         errors.extend(
             f"Dockerfile is missing version-aligned line: {line}" for line in missing_lines
         )
+        if "blea==${BLEA_VERSION}" in dockerfile:
+            errors.append("Dockerfile must build the checkout before its PyPI version exists")
     return sorted(set(errors))
 
 
