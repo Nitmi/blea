@@ -16,10 +16,10 @@ replay verified but native BLE hardware unverified. See [platform-acceptance.md]
 
 ## Python runtime
 
-After version 0.6.2 is available on PyPI:
+After version 0.6.3 is available on PyPI:
 
 ```shell
-uv tool install "blea==0.6.2"
+uv tool install "blea==0.6.3"
 ble --version
 ble doctor --scan-timeout 2 --json
 ```
@@ -51,8 +51,8 @@ Starting with `v0.6.1`, use the same version for PyPI and the Git marketplace. F
 release:
 
 ```shell
-uv tool install "blea==0.6.2"
-codex plugin marketplace add Nitmi/blea --ref v0.6.2
+uv tool install "blea==0.6.3"
+codex plugin marketplace add Nitmi/blea --ref v0.6.3
 codex plugin add blea@blea
 ```
 
@@ -104,12 +104,12 @@ ble --version
 ```
 
 An immutable marketplace ref can be refreshed, but it cannot advance to another release. To move
-to `v0.6.2` after that release is published, replace the configured marketplace source and reinstall
+to `v0.6.3` after that release is published, replace the configured marketplace source and reinstall
 the Agent Plugin separately:
 
 ```shell
 codex plugin marketplace remove blea
-codex plugin marketplace add Nitmi/blea --ref v0.6.2
+codex plugin marketplace add Nitmi/blea --ref v0.6.3
 codex plugin add blea@blea
 ```
 

@@ -74,8 +74,8 @@ prompt. The base fixture URL is
   confirmation. Workflow writes add `dangerous: true` and prerequisite checks.
 - Windows 11 is hardware verified. macOS and Linux are CI and replay verified, while their native
   BLE hardware paths remain unverified.
-- Release `0.6.2` changes distribution and directory publication only; BLE operations, Evidence
-  Format v1, and write guards are unchanged.
+- Release `0.6.3` corrects official Registry namespace casing and cross-platform Skill ZIP
+  reproducibility only; BLE operations, Evidence Format v1, and write guards are unchanged.
 
 Submit through `https://platform.openai.com/plugins` only after the release artifact, identity,
 logo, privacy URL, terms URL, availability, and test cases are all final.

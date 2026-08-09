@@ -42,7 +42,13 @@ def _skill_files(root: Path) -> dict[Path, bytes]:
         path = skill_root / relative
         if path.is_symlink() or not path.is_file():
             raise SkillBundleError(f"missing or unsafe Skill file: {relative.as_posix()}")
-        files[relative] = path.read_bytes()
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeError as error:
+            raise SkillBundleError(
+                f"Skill file must contain UTF-8 text: {relative.as_posix()}"
+            ) from error
+        files[relative] = text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
     return files
 
 
@@ -56,9 +62,7 @@ def build_openai_skill_bundle(root: Path, output_directory: Path) -> dict[str, o
     target = output_directory / f"blea-openai-skill-{version}.zip"
     temporary = output_directory / f".{target.name}.tmp"
     try:
-        with zipfile.ZipFile(
-            temporary, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
-        ) as archive:
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_STORED) as archive:
             for relative in sorted(files, key=lambda path: path.as_posix()):
                 info = zipfile.ZipInfo(
                     filename=f"ble/{relative.as_posix()}",
@@ -66,8 +70,8 @@ def build_openai_skill_bundle(root: Path, output_directory: Path) -> dict[str, o
                 )
                 info.create_system = 3
                 info.external_attr = 0o100644 << 16
-                info.compress_type = zipfile.ZIP_DEFLATED
-                archive.writestr(info, files[relative], compresslevel=9)
+                info.compress_type = zipfile.ZIP_STORED
+                archive.writestr(info, files[relative])
         os.replace(temporary, target)
     finally:
         temporary.unlink(missing_ok=True)

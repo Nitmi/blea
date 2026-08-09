@@ -39,7 +39,10 @@ def test_release_publishes_mcp_registry_after_pypi_with_oidc() -> None:
     assert "./mcp-publisher validate" in release
     assert "./mcp-publisher publish" in release
     assert "Wait for the published PyPI ownership marker" in release
-    assert "<!-- mcp-name: io.github.nitmi/blea -->" in release
+    assert 'server_name="$(python -c' in release
+    assert "sys.argv[1]" in release
+    assert "io.github.nitmi/blea" not in release
+    assert "io.github.Nitmi/blea" not in release
     assert "MCP_REGISTRY_TOKEN" not in release
 
 

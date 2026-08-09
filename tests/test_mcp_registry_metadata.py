@@ -13,7 +13,7 @@ def _write_fixture(root: Path) -> None:
         """
 [project]
 name = "blea"
-version = "0.6.2"
+version = "0.6.3"
 
 [project.scripts]
 blea = "blea.cli:main"
@@ -22,12 +22,12 @@ blea = "blea.cli:main"
         encoding="utf-8",
     )
     (root / "README.md").write_text(
-        "# BLEA\n\n<!-- mcp-name: io.github.nitmi/blea -->\n",
+        "# BLEA\n\n<!-- mcp-name: io.github.Nitmi/blea -->\n",
         encoding="utf-8",
     )
     server = {
         "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-        "name": "io.github.nitmi/blea",
+        "name": "io.github.Nitmi/blea",
         "title": "BLEA",
         "description": "Safe BLE diagnostics for AI agents.",
         "repository": {
@@ -35,12 +35,12 @@ blea = "blea.cli:main"
             "source": "github",
             "id": "1327917598",
         },
-        "version": "0.6.2",
+        "version": "0.6.3",
         "packages": [
             {
                 "registryType": "pypi",
                 "identifier": "blea",
-                "version": "0.6.2",
+                "version": "0.6.3",
                 "transport": {"type": "stdio"},
                 "packageArguments": [{"type": "positional", "value": "mcp"}],
             }
@@ -51,12 +51,12 @@ blea = "blea.cli:main"
     (root / "Dockerfile").write_text(
         "FROM python:3.13-slim@sha256:"
         "9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6\n"
-        "ARG BLEA_VERSION=0.6.2\n"
+        "ARG BLEA_VERSION=0.6.3\n"
         "WORKDIR /opt/blea\n"
         "COPY . .\n"
         "RUN python -m pip install --no-cache-dir .\n"
         'LABEL org.opencontainers.image.version="${BLEA_VERSION}"\n'
-        'LABEL io.modelcontextprotocol.server.name="io.github.nitmi/blea"\n'
+        'LABEL io.modelcontextprotocol.server.name="io.github.Nitmi/blea"\n'
         'ENTRYPOINT ["ble", "mcp"]\n',
         encoding="utf-8",
     )
@@ -94,3 +94,28 @@ def test_mcp_registry_metadata_rejects_release_drift(tmp_path: Path) -> None:
     assert "server.json must declare exactly the version-aligned PyPI stdio package" in errors
     assert "README.md is missing the exact MCP Registry ownership marker" in errors
     assert any("Dockerfile is missing version-aligned line" in error for error in errors)
+
+
+def test_mcp_registry_metadata_rejects_github_owner_case_drift(tmp_path: Path) -> None:
+    _write_fixture(tmp_path)
+    server_path = tmp_path / "server.json"
+    server = json.loads(server_path.read_text(encoding="utf-8"))
+    server["name"] = "io.github.nitmi/blea"
+    server_path.write_text(json.dumps(server), encoding="utf-8")
+    (tmp_path / "README.md").write_text(
+        "# BLEA\n\n<!-- mcp-name: io.github.nitmi/blea -->\n",
+        encoding="utf-8",
+    )
+    dockerfile_path = tmp_path / "Dockerfile"
+    dockerfile_path.write_text(
+        dockerfile_path.read_text(encoding="utf-8").replace(
+            "io.github.Nitmi/blea", "io.github.nitmi/blea"
+        ),
+        encoding="utf-8",
+    )
+
+    errors = validate_mcp_registry(tmp_path)
+
+    assert "server.json name must be 'io.github.Nitmi/blea'" in errors
+    assert "README.md is missing the exact MCP Registry ownership marker" in errors
+    assert any("io.modelcontextprotocol.server.name" in error for error in errors)

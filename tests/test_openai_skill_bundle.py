@@ -19,7 +19,7 @@ def test_repository_openai_skill_bundle_is_complete_and_deterministic(tmp_path: 
     first_bytes = Path(first["path"]).read_bytes()
     second = build_openai_skill_bundle(ROOT, tmp_path)
 
-    assert first["version"] == "0.6.2"
+    assert first["version"] == "0.6.3"
     assert first["file_count"] == len(BUNDLE_FILES)
     assert second["sha256"] == first["sha256"]
     assert Path(second["path"]).read_bytes() == first_bytes
@@ -32,15 +32,32 @@ def test_repository_openai_skill_bundle_is_complete_and_deterministic(tmp_path: 
         for relative in BUNDLE_FILES:
             assert (
                 archive.read(f"ble/{relative.as_posix()}")
-                == (ROOT / "skills" / "ble" / relative).read_bytes()
+                == (ROOT / "skills" / "ble" / relative).read_text(encoding="utf-8").encode()
             )
 
 
 def test_openai_skill_bundle_rejects_missing_required_file(tmp_path: Path) -> None:
-    (tmp_path / "plugin.json").write_text('{"version":"0.6.2"}\n', encoding="utf-8")
+    (tmp_path / "plugin.json").write_text('{"version":"0.6.3"}\n', encoding="utf-8")
     skill_root = tmp_path / "skills" / "ble"
     skill_root.mkdir(parents=True)
     (skill_root / "SKILL.md").write_text("# BLEA\n", encoding="utf-8")
 
     with pytest.raises(SkillBundleError, match="missing or unsafe Skill file"):
         build_openai_skill_bundle(tmp_path, tmp_path / "out")
+
+
+def test_openai_skill_bundle_normalizes_checkout_line_endings(tmp_path: Path) -> None:
+    (tmp_path / "plugin.json").write_text('{"version":"0.6.3"}\n', encoding="utf-8")
+    skill_root = tmp_path / "skills" / "ble"
+    for relative in BUNDLE_FILES:
+        path = skill_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"{relative.as_posix()}\r\nsecond line\r\n".encode())
+
+    report = build_openai_skill_bundle(tmp_path, tmp_path / "out")
+
+    with zipfile.ZipFile(report["path"]) as archive:
+        for relative in BUNDLE_FILES:
+            assert archive.read(f"ble/{relative.as_posix()}") == (
+                f"{relative.as_posix()}\nsecond line\n".encode()
+            )

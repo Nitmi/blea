@@ -1,6 +1,6 @@
 # BLEA
 
-<!-- mcp-name: io.github.nitmi/blea -->
+<!-- mcp-name: io.github.Nitmi/blea -->
 
 [![Agent Plugins 1.0.0](https://img.shields.io/badge/Agent_Plugins-1.0.0-0F766E)](https://agent-plugins.org/)
 [![Agent Skill](https://img.shields.io/badge/Agent-Skill-2563EB)](skills/ble/SKILL.md)
@@ -35,11 +35,11 @@ tool hidden inside an unrelated CLI product.
 BLEA requires Python 3.10 or newer. Bluetooth access is provided by the operating system through
 [Bleak](https://github.com/hbldh/bleak).
 
-The version-aligned `0.6.2` commands below are available once the matching GitHub and PyPI release
+The version-aligned `0.6.3` commands below are available once the matching GitHub and PyPI release
 is published:
 
 ```shell
-uv tool install "blea==0.6.2"
+uv tool install "blea==0.6.3"
 ble --help
 ```
 
@@ -47,7 +47,7 @@ For Codex, install the public Git marketplace package from the matching immutabl
 the runtime:
 
 ```shell
-codex plugin marketplace add Nitmi/blea --ref v0.6.2
+codex plugin marketplace add Nitmi/blea --ref v0.6.3
 codex plugin add blea@blea
 ```
 
@@ -273,7 +273,8 @@ The repository also carries [`server.json`](server.json), the official MCP Regis
 metadata for the PyPI distribution. It declares a local stdio server and the `mcp` package
 argument; it does not advertise a hosted or remote BLE service. Releases publish this metadata to
 the [official MCP Registry](https://registry.modelcontextprotocol.io/) with short-lived GitHub OIDC
-credentials after the matching PyPI version succeeds.
+credentials after the matching PyPI version succeeds. The namespace preserves the GitHub login's
+canonical casing because Registry authorization and package ownership markers are case-sensitive.
 
 The root [`Dockerfile`](Dockerfile) is a registry sandbox for MCP protocol introspection and
 adapter-free tools. It builds the version-aligned release checkout and starts `ble mcp`, which lets

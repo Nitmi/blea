@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.nitmi/blea",
+  "name": "io.github.Nitmi/blea",
   "title": "BLEA",
   "description": "Safe BLE diagnostics, evidence workflows, and guarded automation for AI agents.",
   "repository": {
@@ -8,12 +8,12 @@
     "source": "github",
     "id": "1327917598"
   },
-  "version": "0.6.2",
+  "version": "0.6.3",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "blea",
-      "version": "0.6.2",
+      "version": "0.6.3",
       "transport": {
         "type": "stdio"
       },

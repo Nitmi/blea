@@ -11,8 +11,9 @@ except ModuleNotFoundError:  # pragma: no cover - exercised by the Python 3.10 C
     import tomli as tomllib
 
 MCP_SCHEMA = "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
-MCP_NAME = "io.github.nitmi/blea"
-REPOSITORY_URL = "https://github.com/Nitmi/blea"
+GITHUB_OWNER = "Nitmi"
+MCP_NAME = f"io.github.{GITHUB_OWNER}/blea"
+REPOSITORY_URL = f"https://github.com/{GITHUB_OWNER}/blea"
 REPOSITORY_ID = "1327917598"
 PYPI_PACKAGE = "blea"
 PYTHON_IMAGE = (

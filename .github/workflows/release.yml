@@ -89,14 +89,15 @@ jobs:
         shell: bash
         run: |
           version="$(python -c 'import json; print(json.load(open("server.json"))["version"])')"
+          server_name="$(python -c 'import json; print(json.load(open("server.json"))["name"])')"
           for attempt in {1..18}; do
             if curl --fail --silent --show-error "https://pypi.org/pypi/blea/${version}/json" \
-              | python -c 'import json, sys; assert "<!-- mcp-name: io.github.nitmi/blea -->" in json.load(sys.stdin)["info"]["description"]'
+              | python -c 'import json, sys; marker = f"<!-- mcp-name: {sys.argv[1]} -->"; assert marker in json.load(sys.stdin)["info"]["description"]' "$server_name"
             then
               exit 0
             fi
             if [ "$attempt" -eq 18 ]; then
-              echo "PyPI did not expose the MCP ownership marker for blea ${version}" >&2
+              echo "PyPI did not expose the MCP ownership marker for ${server_name} ${version}" >&2
               exit 1
             fi
             sleep 10

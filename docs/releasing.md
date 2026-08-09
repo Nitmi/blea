@@ -59,8 +59,8 @@ Before the first release:
 - Keep the public Codex Git marketplace source separate from the portable repository-root plugin.
   Do not imply that PyPI installs the Agent Plugin.
 - Confirm the public GitHub repository and PyPI package satisfy ownership verification for the
-  `io.github.nitmi/blea` namespace. The published PyPI README must contain the exact hidden
-  `mcp-name: io.github.nitmi/blea` marker.
+  `io.github.Nitmi/blea` namespace. GitHub OIDC namespace authorization is case-sensitive, and the
+  published PyPI README must contain the exact hidden `mcp-name: io.github.Nitmi/blea` marker.
 
 These operations change public account state and require the repository owner's explicit action or
 authorization. Do not substitute a long-lived PyPI API token.
@@ -98,7 +98,7 @@ Registry versions are immutable; fixing a bad release requires a new version.
 6. Publish the GitHub Release and approve the protected `pypi` environment deployment.
 7. Verify the PyPI project, file hashes, Trusted Publisher identity, and publish attestations.
    Confirm the rendered PyPI description contains the hidden
-   `mcp-name: io.github.nitmi/blea` ownership marker. Confirm the dependent Registry job succeeded,
+   `mcp-name: io.github.Nitmi/blea` ownership marker. Confirm the dependent Registry job succeeded,
    then query the official Registry for the exact server name and version.
 8. In a fresh environment, run:
 
@@ -143,6 +143,8 @@ Version 0.6.0 is the first public release, but its tag predates the Git marketpl
 documented `0.6.0` marketplace bridge therefore uses a verified full commit SHA without changing
 that tag. Version 0.6.1 is the first release required to support version-aligned marketplace
 installation directly from its release tag. Version 0.6.2 is the first release prepared for the
-official MCP Registry and OpenAI skills-only review. A release is complete only after the GitHub
-workflow, PyPI installation, Registry entry, public replay, and documented post-publication checks
-above pass; OpenAI review may complete later on the marketplace's own schedule.
+official MCP Registry and OpenAI skills-only review, but its lowercase GitHub namespace could not be
+published to the case-sensitive Registry. Version 0.6.3 corrects that namespace and is the first
+version intended to complete official Registry publication. A release is complete only after the
+GitHub workflow, PyPI installation, Registry entry, public replay, and documented post-publication
+checks above pass; OpenAI review may complete later on the marketplace's own schedule.

@@ -5,6 +5,31 @@ API, evidence formats, and Agent Plugin integration mature toward 1.0.
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-08-09
+
+Registry namespace correction patch. BLE operations, write guards, and Evidence Format v1 are
+unchanged.
+
+### Fixed
+
+- Preserve the canonical GitHub login casing in `io.github.Nitmi/blea`, matching the namespace
+  granted by official MCP Registry GitHub OIDC authentication.
+- Derive the release workflow's PyPI ownership-marker check from `server.json` instead of embedding
+  a second server name that can drift.
+- Normalize OpenAI Skill bundle text to UTF-8/LF and use stable ZIP storage so Windows and Linux
+  builds produce the same bytes.
+
+### Safety and platform status
+
+- No live BLE behavior, protocol operation, write authorization, or platform support claim changes
+  in this release.
+
+### Upgrade notes
+
+- Install `blea==0.6.3` and the Codex marketplace at `--ref v0.6.3`.
+- Version `0.6.2` remains a valid GitHub/PyPI release, but its lowercase Registry namespace marker
+  cannot be changed after PyPI publication; use `0.6.3` for official Registry discovery.
+
 ## [0.6.2] - 2026-08-09
 
 Registry and discovery release. BLE operations, write guards, and Evidence Format v1 are unchanged.
@@ -38,6 +63,12 @@ Registry and discovery release. BLE operations, write guards, and Evidence Forma
 
 - Install `blea==0.6.2` and the Codex marketplace at `--ref v0.6.2`, then start a new Agent task.
 - Official MCP Registry publication occurs automatically after PyPI in the release workflow.
+
+### Known issue
+
+- The official Registry rejected the lowercase `io.github.nitmi/blea` name because GitHub OIDC
+  granted the canonical, case-sensitive `io.github.Nitmi/*` namespace. PyPI metadata is immutable,
+  so the correction is released as `0.6.3` rather than rewriting this release.
 
 ## [0.6.1] - 2026-08-09
 
