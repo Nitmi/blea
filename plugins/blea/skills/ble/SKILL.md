@@ -95,14 +95,17 @@ lock, actuator, or other state-changing action.
 discovery, connection, profile discovery, each requested read, and any subscription duration when
 setting an outer Agent/tool timeout.
 
-Capture files use Evidence Format v1. Read [evidence-format-v1.md](../../docs/evidence-format-v1.md)
+Capture files use Evidence Format v1. Read
+[evidence-format-v1.md](https://github.com/Nitmi/blea/blob/v0.6.1/docs/evidence-format-v1.md)
 when an agent needs to validate, redact, or build replay tooling around a package. Read
-[diff-format-v1.md](../../docs/diff-format-v1.md) before interpreting comparison policy, stable
-paths, ignored fields, identity guards, or CI exit behavior.
-Read [replay-format-v1.md](../../docs/replay-format-v1.md) before interpreting missing evidence,
-captured failures, notification timing, replay MCP mode, or the read-only safety boundary.
-Read [platform-acceptance.md](../../docs/platform-acceptance.md) before claiming platform support,
-running a cross-platform hardware acceptance, or publishing a real-device capture fixture.
+[diff-format-v1.md](https://github.com/Nitmi/blea/blob/v0.6.1/docs/diff-format-v1.md) before
+interpreting comparison policy, stable paths, ignored fields, identity guards, or CI exit behavior.
+Read [replay-format-v1.md](https://github.com/Nitmi/blea/blob/v0.6.1/docs/replay-format-v1.md)
+before interpreting missing evidence, captured failures, notification timing, replay MCP mode, or
+the read-only safety boundary. Read
+[platform-acceptance.md](https://github.com/Nitmi/blea/blob/v0.6.1/docs/platform-acceptance.md)
+before claiming platform support, running a cross-platform hardware acceptance, or publishing a
+real-device capture fixture.
 
 ## Write policy
 
