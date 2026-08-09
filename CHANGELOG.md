@@ -11,6 +11,8 @@ API, evidence formats, and Agent Plugin integration mature toward 1.0.
 - A deterministic Codex Plugin synchronization command with a read-only `--check` mode.
 - Cross-platform CI gates for Plugin mirror drift, the public marketplace contract, and sdist/wheel
   content boundaries.
+- A repository-local Agent package validator for Codex manifests, MCP declarations, Skill metadata,
+  and `agents/openai.yaml`, with official validators retained as release-time compatibility checks.
 
 ## [0.6.0] - 2026-08-09
 

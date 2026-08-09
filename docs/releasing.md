@@ -14,7 +14,11 @@ complete until the package is installed again from its public distribution path.
    ```shell
    uv run python scripts/sync_codex_plugin.py
    uv run python scripts/sync_codex_plugin.py --check
+   uv run python scripts/check_agent_package.py
    ```
+
+   The repository-local checker is the CI gate. Also run the current official Skill validator and
+   both official Plugin validators before publishing to catch upstream contract changes.
 
 4. Build from a clean output directory and validate both artifacts:
 

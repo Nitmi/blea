@@ -20,6 +20,7 @@ REQUIRED_SDIST_FILES = frozenset(
         "plugins/blea/.codex-plugin/plugin.json",
         "plugins/blea/.mcp.json",
         "plugins/blea/skills/ble/SKILL.md",
+        "scripts/check_agent_package.py",
         "scripts/check_distribution.py",
         "scripts/sync_codex_plugin.py",
         "skills/ble/SKILL.md",

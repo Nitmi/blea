@@ -256,6 +256,7 @@ privacy requirements, hardware acceptance procedure, and current evidence matrix
 ```shell
 uv sync --extra dev
 uv run python scripts/sync_codex_plugin.py --check
+uv run python scripts/check_agent_package.py
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest
@@ -269,6 +270,8 @@ evidence fixture, providing an end-to-end CLI and Workflow smoke test with no ad
 
 The root `.codex-plugin`, `.mcp.json`, and `skills` paths are the Codex Plugin source of truth. After
 changing them, run `uv run python scripts/sync_codex_plugin.py`; CI uses `--check` to reject drift.
+The repository-local Agent package checker validates both Codex Plugin roots, their MCP declaration,
+Skill metadata, and `agents/openai.yaml` without relying on a maintainer's personal Skill directory.
 The distribution checker also rejects missing marketplace files in the sdist and Plugin metadata in
 the Python wheel.
 
