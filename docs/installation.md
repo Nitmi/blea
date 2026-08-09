@@ -47,16 +47,31 @@ inherit a `PATH` that can resolve the `ble` executable.
 
 ### Codex Git marketplace
 
-Add the public Git marketplace and install BLEA:
+The original `v0.6.0` tag predates the Git marketplace package. For the currently published
+`0.6.0` runtime, add the verified post-release snapshot by its full commit SHA and install BLEA:
 
 ```shell
-codex plugin marketplace add Nitmi/blea --ref main
+codex plugin marketplace add Nitmi/blea --ref 81afc6b3e1a85741d6d02ff95a4deb63248eb951
 codex plugin add blea@blea
 ```
 
-The first command registers a versioned snapshot of the public repository. The second installs the
+The first command registers an immutable snapshot of the public repository. The second installs the
 Codex package from `plugins/blea`. Start a new Agent task after installation so Codex loads the BLE
 Skill and the local `ble mcp` server.
+
+Starting with the next patch release, use the same version for PyPI and the Git marketplace. After
+`v0.6.1` is published, the version-aligned installation is:
+
+```shell
+uv tool install "blea==0.6.1"
+codex plugin marketplace add Nitmi/blea --ref v0.6.1
+codex plugin add blea@blea
+```
+
+Release tags matching `v*` are protected against deletion and non-fast-forward updates in the BLEA
+repository. Do not use a moving branch such as `main` for a reproducible installation. Before a
+release is documented as installable, its tag must contain both `.agents/plugins/marketplace.json`
+and `plugins/blea/.codex-plugin/plugin.json`.
 
 The marketplace installs Plugin metadata only. It does not install Python, Bleak, the `ble` command,
 or operating-system Bluetooth permissions. Keep the PyPI runtime and Plugin versions aligned.
@@ -88,10 +103,13 @@ uv tool upgrade blea
 ble --version
 ```
 
-Refresh the public Git snapshot and reinstall the Agent Plugin separately:
+An immutable marketplace ref can be refreshed, but it cannot advance to another release. To move
+to `v0.6.1` after that release is published, replace the configured marketplace source and reinstall
+the Agent Plugin separately:
 
 ```shell
-codex plugin marketplace upgrade blea
+codex plugin marketplace remove blea
+codex plugin marketplace add Nitmi/blea --ref v0.6.1
 codex plugin add blea@blea
 ```
 

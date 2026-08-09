@@ -23,15 +23,19 @@ uv tool install "blea==0.6.0"
 ble --help
 ```
 
-For Codex, install the public Git marketplace package after the runtime:
+For Codex, install the public Git marketplace package after the runtime. The current command pins
+the verified marketplace snapshot for the `0.6.0` runtime instead of following a moving branch:
 
 ```shell
-codex plugin marketplace add Nitmi/blea --ref main
+codex plugin marketplace add Nitmi/blea --ref 81afc6b3e1a85741d6d02ff95a4deb63248eb951
 codex plugin add blea@blea
 ```
 
 Start a new Agent task after installation. The marketplace package supplies the BLE Skill and MCP
-declaration; it does not install the Python runtime or operating-system Bluetooth permissions.
+declaration; it does not install the Python runtime or operating-system Bluetooth permissions. The
+original `v0.6.0` tag predates the marketplace package. Starting with `v0.6.1`, install released
+marketplace packages from the matching immutable `v<version>` tag. See
+[`docs/installation.md`](docs/installation.md) for the release-tag and update procedure.
 
 From a checkout, install the command runtime directly from the working tree:
 
@@ -235,10 +239,11 @@ The plugin configuration expects the `ble` executable to be installed on `PATH`.
 specification distributes Skill and MCP metadata; native Bluetooth runtime installation and OS
 permissions remain platform responsibilities.
 
-The public Codex distribution is registered with `codex plugin marketplace add Nitmi/blea --ref
-main` and installed with `codex plugin add blea@blea`. Refresh it with `codex plugin marketplace
-upgrade blea`, reinstall the Plugin, and start a new Agent task. Do not treat installing the Python
-package alone as installing the Agent Skill or MCP declaration.
+The public Codex distribution is registered at the immutable Git ref shown in the install section
+and installed with `codex plugin add blea@blea`. A pinned ref does not advance to another release
+when a marketplace snapshot is refreshed. To change releases, remove the configured marketplace,
+add it again at the new `v<version>` tag, reinstall the Plugin, and start a new Agent task. Do not
+treat installing the Python package alone as installing the Agent Skill or MCP declaration.
 
 ## Platform status
 

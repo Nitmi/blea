@@ -15,6 +15,8 @@ API, evidence formats, and Agent Plugin integration mature toward 1.0.
   and `agents/openai.yaml`, with official validators retained as release-time compatibility checks.
 - GitHub Actions dependencies upgraded to Node.js 24-compatible releases while preserving the
   existing setup-uv cache-pruning behavior.
+- Reproducible Codex marketplace installation guidance using a verified commit for the `0.6.0`
+  bridge and immutable, version-aligned release tags beginning with `v0.6.1`.
 
 ## [0.6.0] - 2026-08-09
 

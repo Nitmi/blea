@@ -14,6 +14,7 @@ REQUIRED_SDIST_FILES = frozenset(
         "CHANGELOG.md",
         "LICENSE",
         "README.md",
+        "docs/installation.md",
         "docs/releasing.md",
         "mcp.json",
         "plugin.json",

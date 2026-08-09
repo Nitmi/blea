@@ -7,7 +7,8 @@ complete until the package is installed again from its public distribution path.
 
 1. Select a Semantic Version and align it in `pyproject.toml`, `src/blea/__init__.py`, `plugin.json`,
    and the base portions of both Codex Plugin manifests.
-2. Update `CHANGELOG.md`, README installation text, platform status, and known limitations.
+2. Update `CHANGELOG.md`, README installation text, platform status, and known limitations. Public
+   marketplace install commands must use the release's immutable `v<version>` tag, never `main`.
 3. Synchronize the root Codex package into `plugins/blea`, verify there is no drift, then run the
    unit suite, Ruff checks, Skill validator, both Plugin validators, lock check, and diff check:
 
@@ -65,12 +66,21 @@ release requires a new version.
 
 1. Complete every release gate locally and merge the release commit.
 2. Wait for the default-branch CI matrix to pass.
-3. Create an annotated `v<version>` tag from the verified release commit and push that tag.
-4. Draft GitHub Release notes from `CHANGELOG.md`, explicitly retaining the platform limitations and
+3. Create an annotated `v<version>` tag from the verified release commit and push that tag. Do not
+   move or replace an existing release tag.
+4. Confirm the protected tag resolves to the verified commit and contains the installable
+   marketplace before publishing:
+
+   ```shell
+   git show "v<version>:.agents/plugins/marketplace.json"
+   git show "v<version>:plugins/blea/.codex-plugin/plugin.json"
+   ```
+
+5. Draft GitHub Release notes from `CHANGELOG.md`, explicitly retaining the platform limitations and
    write-safety policy.
-5. Publish the GitHub Release and approve the protected `pypi` environment deployment.
-6. Verify the PyPI project, file hashes, Trusted Publisher identity, and publish attestations.
-7. In a fresh environment, run:
+6. Publish the GitHub Release and approve the protected `pypi` environment deployment.
+7. Verify the PyPI project, file hashes, Trusted Publisher identity, and publish attestations.
+8. In a fresh environment, run:
 
    ```shell
    uv tool install "blea==<version>"
@@ -79,12 +89,24 @@ release requires a new version.
    ble replay <downloaded-fixture> run <downloaded-workflow> --json
    ```
 
-8. Add or upgrade the public Git marketplace, install `blea@blea`, start a new Agent task, verify MCP
-   initialization, and confirm the server tool count and version.
-9. Record the GitHub Release URL, PyPI URL, artifact SHA-256 values, CI run, Plugin install result,
+9. Install the public Git marketplace from the same immutable release tag, install `blea@blea`,
+   start a new Agent task, verify MCP initialization, and confirm the server tool count and version:
+
+   ```shell
+   codex plugin marketplace add Nitmi/blea --ref v<version>
+   codex plugin add blea@blea
+   ```
+
+   If `blea` is already configured at an older ref, remove that marketplace first and add it again
+   at the new tag. `marketplace upgrade` only refreshes the configured ref; it does not select a new
+   release.
+10. Record the GitHub Release URL, PyPI URL, artifact SHA-256 values, CI run, Plugin install result,
    and hardware/replay smoke results in the project TODO.
 
 ## First release
 
-Version 0.6.0 is the first public release. A release is complete only after the GitHub workflow,
+Version 0.6.0 is the first public release, but its tag predates the Git marketplace package. The
+documented `0.6.0` marketplace bridge therefore uses a verified full commit SHA without changing
+that tag. Version 0.6.1 is the first release required to support version-aligned marketplace
+installation directly from its release tag. A release is complete only after the GitHub workflow,
 PyPI installation, public replay, and documented post-publication checks above pass.
