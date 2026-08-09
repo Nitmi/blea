@@ -1,6 +1,6 @@
 {
   "name": "blea",
-  "version": "0.6.0+codex.20260808172857",
+  "version": "0.6.1+codex.20260809051214",
   "description": "Agent-first BLE diagnostics, evidence replay, and guarded automation.",
   "author": {
     "name": "Nitmi",

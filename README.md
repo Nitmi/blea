@@ -16,26 +16,26 @@ authorization.
 BLEA requires Python 3.10 or newer. Bluetooth access is provided by the operating system through
 [Bleak](https://github.com/hbldh/bleak).
 
-Install the command runtime from PyPI with:
+The version-aligned `0.6.1` commands below are available once the matching GitHub and PyPI release
+is published:
 
 ```shell
-uv tool install "blea==0.6.0"
+uv tool install "blea==0.6.1"
 ble --help
 ```
 
-For Codex, install the public Git marketplace package after the runtime. The current command pins
-the verified marketplace snapshot for the `0.6.0` runtime instead of following a moving branch:
+For Codex, install the public Git marketplace package from the matching immutable release tag after
+the runtime:
 
 ```shell
-codex plugin marketplace add Nitmi/blea --ref 81afc6b3e1a85741d6d02ff95a4deb63248eb951
+codex plugin marketplace add Nitmi/blea --ref v0.6.1
 codex plugin add blea@blea
 ```
 
 Start a new Agent task after installation. The marketplace package supplies the BLE Skill and MCP
-declaration; it does not install the Python runtime or operating-system Bluetooth permissions. The
-original `v0.6.0` tag predates the marketplace package. Starting with `v0.6.1`, install released
-marketplace packages from the matching immutable `v<version>` tag. See
-[`docs/installation.md`](docs/installation.md) for the release-tag and update procedure.
+declaration; it does not install the Python runtime or operating-system Bluetooth permissions. See
+[`docs/installation.md`](docs/installation.md) for the release-tag, legacy `0.6.0` bridge, and update
+procedure.
 
 From a checkout, install the command runtime directly from the working tree:
 

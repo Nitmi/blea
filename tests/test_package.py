@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import json
 from contextvars import ContextVar
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ def test_portable_and_codex_manifests_reference_same_server() -> None:
     codex_mcp = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
 
     assert portable["name"] == codex["name"] == "blea"
+    assert package_version("blea") == __version__
     assert portable["version"] == __version__
     assert codex["version"].split("+", 1)[0] == __version__
     assert "+codex." in codex["version"]
