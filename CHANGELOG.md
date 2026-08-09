@@ -13,6 +13,8 @@ API, evidence formats, and Agent Plugin integration mature toward 1.0.
   content boundaries.
 - A repository-local Agent package validator for Codex manifests, MCP declarations, Skill metadata,
   and `agents/openai.yaml`, with official validators retained as release-time compatibility checks.
+- GitHub Actions dependencies upgraded to Node.js 24-compatible releases while preserving the
+  existing setup-uv cache-pruning behavior.
 
 ## [0.6.0] - 2026-08-09
 
