@@ -36,6 +36,16 @@ tool hidden inside an unrelated CLI product.
 BLEA requires Python 3.10 or newer. Bluetooth access is provided by the operating system through
 [Bleak](https://github.com/hbldh/bleak).
 
+### Quick install with an Agent prompt
+
+Give this prompt to an Agent with shell access:
+
+```text
+Read https://github.com/Nitmi/blea and follow its README to install BLEA for me.
+```
+
+For manual installation, use the detailed paths below.
+
 The version-aligned `0.6.4` commands below are available once the matching GitHub and PyPI release
 is published:
 
@@ -89,14 +99,6 @@ For repository development:
 ```shell
 uv sync --extra dev
 uv run ble --help
-```
-
-### Install with an Agent prompt
-
-Give this prompt to an Agent with shell access:
-
-```text
-Read https://github.com/Nitmi/blea and follow its README to install BLEA for me.
 ```
 
 The Python runtime and Agent Plugin are two related installation units: PyPI installs the `ble`
