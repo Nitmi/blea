@@ -19,12 +19,6 @@ finding the right nearby device, discovering GATT services, preserving and compa
 evidence, reading and subscribing before changing state, and making writes only after explicit
 authorization.
 
-## Companion project
-
-For serial, UART, COM-port, USB-to-TTL, and firmware-console workflows, see
-[`baud-cli`](https://github.com/Nitmi/baud-cli). It provides an agent-friendly `baud` CLI and
-portable Skill with guarded YAML automation, structured output, and archived raw-byte evidence.
-
 | Surface | Role |
 | --- | --- |
 | Agent Plugin 1.0.0 | Packages the portable identity, Skill, and MCP declaration. |
@@ -339,3 +333,9 @@ claim.
 Release history lives in [`CHANGELOG.md`](CHANGELOG.md). Maintainers should follow
 [`docs/releasing.md`](docs/releasing.md) for artifact, Trusted Publishing, Plugin, and
 post-publication gates.
+
+## Companion project
+
+For serial, UART, COM-port, USB-to-TTL, and firmware-console workflows, see
+[`baud-cli`](https://github.com/Nitmi/baud-cli). It provides an agent-friendly `baud` CLI and
+portable Skill with guarded YAML automation, structured output, and archived raw-byte evidence.
