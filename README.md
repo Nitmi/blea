@@ -46,19 +46,17 @@ Read https://github.com/Nitmi/blea and follow its README to install BLEA for me.
 
 For manual installation, use the detailed paths below.
 
-The version-aligned `0.6.4` commands below are available once the matching GitHub and PyPI release
-is published:
+Install the latest published Python runtime from PyPI:
 
 ```shell
-uv tool install "blea==0.6.4"
+uv tool install blea
 ble --help
 ```
 
-For Codex, install the public Git marketplace package from the matching immutable release tag after
-the runtime:
+For Codex, install the public Git marketplace package after the runtime:
 
 ```shell
-codex plugin marketplace add Nitmi/blea --ref v0.6.4
+codex plugin marketplace add Nitmi/blea
 codex plugin add blea@blea
 ```
 
