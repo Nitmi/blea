@@ -83,6 +83,22 @@ repository tests preventing drift.
 Local development uses a local marketplace entry and should follow the Codex `plugin-creator`
 cachebuster and reinstall flow rather than editing installed marketplace state by hand.
 
+### ClawHub Skill
+
+BLEA `0.6.4` is also published as the public ClawHub Skill
+[`@nitmi/blea`](https://clawhub.ai/nitmi/skills/blea). Install it through OpenClaw or the ClawHub
+registry CLI:
+
+```shell
+openclaw skills install @nitmi/blea
+# Or:
+clawhub install @nitmi/blea
+```
+
+This installs the portable Skill only. Install the matching `blea` Python runtime separately before
+using live Bluetooth commands or the local MCP server. Offline evidence review can still use the
+Skill without native adapter access.
+
 ## Offline verification
 
 The following smoke test needs no adapter and is safe to run in CI:

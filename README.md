@@ -5,6 +5,7 @@
 [![Agent Plugins 1.0.0](https://img.shields.io/badge/Agent_Plugins-1.0.0-0F766E)](https://agent-plugins.org/)
 [![Agent Skill](https://img.shields.io/badge/Agent-Skill-2563EB)](skills/ble/SKILL.md)
 [![skills.sh](https://skills.sh/b/nitmi/blea)](https://www.skills.sh/nitmi/blea/ble)
+[![ClawHub Skill](https://img.shields.io/badge/ClawHub-Skill-D97706)](https://clawhub.ai/nitmi/skills/blea)
 [![CLI](https://img.shields.io/badge/Interface-CLI-374151)](#cli)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-C2410C)](#mcp-and-agent-plugin)
 [![PyPI](https://img.shields.io/pypi/v/blea)](https://pypi.org/project/blea/)
@@ -57,10 +58,19 @@ To install only the portable Agent Skill with the Skills CLI:
 npx skills add Nitmi/blea --skill ble
 ```
 
+For OpenClaw, install the same portable Skill from its public ClawHub listing:
+
+```shell
+openclaw skills install @nitmi/blea
+# Or use the registry CLI directly:
+clawhub install @nitmi/blea
+```
+
 The Skill teaches the workflow and safety policy; it does not install the Python runtime. Install
 `blea` from PyPI as shown above before asking an agent to access live Bluetooth hardware or start
 the local MCP server. The indexed Skill page is
-[`skills.sh/nitmi/blea/ble`](https://www.skills.sh/nitmi/blea/ble).
+[`skills.sh/nitmi/blea/ble`](https://www.skills.sh/nitmi/blea/ble), and the ClawHub release is
+[`@nitmi/blea`](https://clawhub.ai/nitmi/skills/blea).
 
 Start a new Agent task after installation. The marketplace package supplies the BLE Skill and MCP
 declaration; it does not install the Python runtime or operating-system Bluetooth permissions. See
