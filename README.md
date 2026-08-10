@@ -91,6 +91,66 @@ uv sync --extra dev
 uv run ble --help
 ```
 
+### Install with an Agent prompt
+
+Give one of the following prompts to an Agent with shell access to the target host. Each prompt
+keeps installation verification separate from live Bluetooth access.
+
+**CLI runtime only**
+
+```text
+Install the BLEA CLI runtime at exactly version 0.6.4 from PyPI with uv tool. Inspect any existing
+BLEA installation first, preserve unrelated tools, then verify `ble --version` and `ble --help`.
+Do not scan, connect to, pair with, subscribe to, read from, or write to any Bluetooth device.
+Report the commands run, resolved executable path, and final version.
+```
+
+**Codex Agent Plugin and runtime**
+
+```text
+Install BLEA 0.6.4 for Codex from https://github.com/Nitmi/blea. Install the exact PyPI runtime
+with `uv tool install "blea==0.6.4"`, add the Codex Git marketplace at immutable ref `v0.6.4`, and
+install `blea@blea`. Inspect existing BLEA marketplace/plugin state first and preserve unrelated
+plugins. Verify the runtime and plugin metadata without accessing Bluetooth hardware, then tell me
+that a new Agent task is required before the Skill and MCP server are loaded.
+```
+
+**Portable Skill through the Skills CLI**
+
+```text
+Install only the portable `ble` Agent Skill from https://github.com/Nitmi/blea with
+`npx skills add Nitmi/blea --skill ble`. Do not install the BLEA Python runtime or Agent Plugin and
+do not access Bluetooth hardware. Verify the installed Skill path and metadata, then report exactly
+what was installed.
+```
+
+**OpenClaw Skill through ClawHub**
+
+```text
+Install only the public ClawHub Skill `@nitmi/blea` at version 0.6.4 into the current OpenClaw
+workspace. Prefer the native OpenClaw Skill installer; use
+`clawhub install @nitmi/blea --version 0.6.4` when the registry CLI is the available path. Verify
+the owner, version, installed files, and Skill metadata. Do not install the Python runtime and do
+not access Bluetooth hardware.
+```
+
+**Runtime from a source checkout**
+
+```text
+From this BLEA repository checkout, install the command runtime in editable mode with
+`uv tool install --editable .`. Confirm that this is the intended checkout before changing tool
+state, preserve unrelated tools, and verify `ble --version`. Do not run any command that accesses a
+Bluetooth adapter or device.
+```
+
+**Repository development environment**
+
+```text
+Prepare this BLEA checkout for development with `uv sync --extra dev`. Verify the environment with
+`uv run ble --help`, Ruff, formatting checks, and the unit test suite. Do not install or update the
+public package, do not publish anything, and do not access Bluetooth hardware.
+```
+
 The Python runtime and Agent Plugin are two related installation units: PyPI installs the `ble`
 executable, while an Agent Plugins 1.0.0 client loads this repository directory to discover
 `plugin.json`, `mcp.json`, and `skills/ble`. Install the runtime first so the plugin's local stdio
